@@ -241,6 +241,19 @@ function selectPlatformJar(assets) {
 }
 
 /**
+ * Downloads JAR from custom URL
+ */
+async function downloadFromCustomUrl(customUrl) {
+    try {
+        console.log(`Downloading from custom URL: ${customUrl}`);
+        await downloadFile(customUrl, JAR_PATH);
+        console.log(`✓ Downloaded from custom source and saved as ${CANONICAL_JAR_NAME}`);
+    } catch (error) {
+        throw new Error(`Failed to download from custom URL: ${error.message}`);
+    }
+}
+
+/**
  * Downloads the latest release JAR from GitHub
  */
 async function downloadLatestRelease() {
@@ -315,9 +328,17 @@ async function prepareServer() {
             return;
         }
 
-        // Download from GitHub releases
-        console.log('Downloading from GitHub releases...');
-        await downloadLatestRelease();
+        // Check for custom download URL first
+        const customUrl = process.env.GROOVY_LSP_DOWNLOAD_URL;
+
+        if (customUrl) {
+            console.log('Using custom download URL...');
+            await downloadFromCustomUrl(customUrl);
+        } else {
+            // Download from GitHub releases
+            console.log('Downloading from GitHub releases...');
+            await downloadLatestRelease();
+        }
 
     } catch (error) {
         console.error('❌ Error preparing Groovy Language Server:');
@@ -334,8 +355,10 @@ async function prepareServer() {
         }
 
         console.error('');
-        console.error('You can also manually copy a JAR file to:');
-        console.error(`  ${JAR_PATH}`);
+        console.error('You can also:');
+        console.error(`1. Manually copy a JAR file to: ${JAR_PATH}`);
+        console.error('2. Set GROOVY_LSP_DOWNLOAD_URL environment variable to a custom download URL');
+        console.error('3. Configure "groovy.server.downloadUrl" in VSCode settings for air-gapped environments');
 
         process.exit(1);
     }

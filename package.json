@@ -23,6 +23,8 @@
     "onLanguage:jenkinsfile",
     "workspaceContains:**/Jenkinsfile",
     "workspaceContains:**/Jenkinsfile.*",
+    "workspaceContains:**/Jenkins*",
+    "workspaceContains:**/*.jenkins",
     "workspaceContains:**/*.groovy",
     "workspaceContains:**/*.gradle",
     "workspaceContains:**/*.gradle.kts"
@@ -33,6 +35,70 @@
       {
         "command": "groovy.restartServer",
         "title": "Groovy: Restart Language Server"
+      },
+      {
+        "command": "groovy.organizeImports",
+        "title": "Groovy: Organize Imports"
+      },
+      {
+        "command": "groovy.generateAccessors",
+        "title": "Groovy: Generate Getter and Setter"
+      },
+      {
+        "command": "groovy.convertStringType",
+        "title": "Groovy: Convert String Type"
+      },
+      {
+        "command": "groovy.addCompileStatic",
+        "title": "Groovy: Add @CompileStatic"
+      },
+      {
+        "command": "groovy.gradle.build",
+        "title": "Gradle: Build"
+      },
+      {
+        "command": "groovy.gradle.test",
+        "title": "Gradle: Test"
+      },
+      {
+        "command": "groovy.gradle.clean",
+        "title": "Gradle: Clean"
+      },
+      {
+        "command": "groovy.gradle.selectTask",
+        "title": "Gradle: Select and Run Task"
+      },
+      {
+        "command": "groovy.gradle.dependencies",
+        "title": "Gradle: Show Dependencies"
+      },
+      {
+        "command": "groovy.gradle.refresh",
+        "title": "Gradle: Refresh Project"
+      },
+      {
+        "command": "groovy.gradle.projectInfo",
+        "title": "Gradle: Show Project Info"
+      },
+      {
+        "command": "groovy.test.runInFile",
+        "title": "Groovy: Run Tests in File"
+      },
+      {
+        "command": "groovy.test.runAll",
+        "title": "Groovy: Run All Tests"
+      },
+      {
+        "command": "groovy.test.runAtCursor",
+        "title": "Groovy: Run Test at Cursor"
+      },
+      {
+        "command": "groovy.test.discover",
+        "title": "Groovy: Discover Tests"
+      },
+      {
+        "command": "groovy.test.createSpock",
+        "title": "Groovy: Create Spock Test"
       }
     ],
     "languages": [
@@ -59,10 +125,13 @@
           "Jenkins Pipeline"
         ],
         "filenames": [
-          "Jenkinsfile"
+          "Jenkinsfile",
+          "Jenkins"
         ],
         "filenamePatterns": [
           "Jenkinsfile*",
+          "Jenkins*",
+          "*.jenkins",
           "*.jenkinsfile",
           "*.Jenkinsfile"
         ],
@@ -79,6 +148,20 @@
         "language": "jenkinsfile",
         "scopeName": "source.groovy",
         "path": "./syntaxes/groovy.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "groovy",
+        "path": "./snippets/groovy.json"
+      },
+      {
+        "language": "jenkinsfile",
+        "path": "./snippets/jenkinsfile.json"
+      },
+      {
+        "language": "groovy",
+        "path": "./snippets/gradle.json"
       }
     ],
     "configuration": {
@@ -103,6 +186,31 @@
           "type": "number",
           "default": 100,
           "description": "Controls the maximum number of problems produced by the server."
+        },
+        "groovy.compilation.mode": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "single-file"
+          ],
+          "default": "workspace",
+          "description": "Compilation mode: 'workspace' compiles all files together for cross-file resolution, 'single-file' compiles each file in isolation (faster but no cross-file resolution)."
+        },
+        "groovy.compilation.incrementalThreshold": {
+          "type": "number",
+          "default": 50,
+          "minimum": 1,
+          "description": "Number of files above which incremental compilation is used. Below this, full recompilation is performed for simplicity and correctness."
+        },
+        "groovy.compilation.maxWorkspaceFiles": {
+          "type": "number",
+          "default": 500,
+          "minimum": 1,
+          "description": "Maximum number of Groovy files to compile together in workspace mode. Above this limit, falls back to single-file mode for performance."
+        },
+        "groovy.server.downloadUrl": {
+          "type": "string",
+          "description": "Custom URL to download Groovy Language Server JAR (for air-gapped environments). If not set, downloads from GitHub releases."
         }
       }
     }
@@ -112,6 +220,7 @@
     "prepare-server": "node scripts/prepare-server.js",
     "prepare-server:local": "PREFER_LOCAL=true node scripts/prepare-server.js",
     "prepare-server:download": "FORCE_DOWNLOAD=true node scripts/prepare-server.js",
+    "prepare-server:custom": "node scripts/prepare-server.js",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
     "package-build": "npm run check-types && npm run lint && node esbuild.js --production",
     "watch": "npm-run-all -p watch:*",
@@ -121,17 +230,34 @@
     "lint": "eslint client/src/**/*.ts",
     "package": "npm run prepare-server && vsce package",
     "clean": "rm -rf client/out/ server/*.jar",
+    "test": "npm run test:unit",
+    "test:unit": "npm run compile:tests && mocha client/out/test/unit/**/*.test.js",
+    "compile:tests": "tsc --project client/tsconfig.json",
+    "test:integration": "npm run compile:tests && vscode-test",
+    "test:watch": "npm run compile && mocha client/out/test/unit/**/*.test.js --watch",
+    "test:all": "npm run test:unit && npm run test:integration",
+    "test:coverage": "npm run compile:tests && c8 mocha client/out/test/unit/**/*.test.js",
     "postinstall": "cd client && npm install && cd .. && npm run prepare-server"
   },
   "devDependencies": {
-    "@types/node": "^22",
     "@eslint/js": "^9.13.0",
+    "@types/chai": "^5.2.2",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22",
+    "@types/sinon": "^17.0.4",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.0.0",
+    "c8": "^10.1.3",
+    "chai": "^6.2.0",
     "esbuild": "^0.25.0",
     "eslint": "^9.13.0",
+    "glob": "^11.0.3",
+    "mocha": "^11.7.2",
     "npm-run-all": "^4.1.5",
+    "sinon": "^21.0.0",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.39.0",
-    "@vscode/vsce": "^3.0.0"
+    "typescript-eslint": "^8.39.0"
   },
   "repository": {
     "type": "git",
