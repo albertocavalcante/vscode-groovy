@@ -40,7 +40,7 @@ export async function activate(context: ExtensionContext) {
         }
 
         // Register test provider
-        registerTestProvider(context);
+        await registerTestProvider(context);
 
         // Start the Language Server
         await startClient();

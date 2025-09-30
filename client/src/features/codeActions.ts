@@ -209,7 +209,7 @@ function isGroovyFile(document: vscode.TextDocument): boolean {
 }
 
 function extractImports(text: string): ImportStatement[] {
-    const importRegex = /^\\s*import\\s+(?:static\\s+)?([\\w\\.\\*]+)(?:\\s+as\\s+(\\w+))?\\s*$/gm;
+    const importRegex = /^\\s*import\\s+(?:static\\s+)?([\\w.*]+)(?:\\s+as\\s+(\\w+))?\\s*$/gm;
     const imports: ImportStatement[] = [];
     let match;
 
@@ -366,7 +366,7 @@ function findImportInsertPosition(document: vscode.TextDocument): vscode.Positio
     const text = document.getText();
 
     // Look for package declaration
-    const packageMatch = text.match(/^package\\s+[\\w\\.]+\\s*$/m);
+    const packageMatch = text.match(/^package\\s+[\\w.]+\\s*$/m);
     if (packageMatch) {
         const packageEnd = text.indexOf(packageMatch[0]) + packageMatch[0].length;
         const position = document.positionAt(packageEnd);

@@ -26,9 +26,14 @@ export class GroovyTestProvider {
 
         // Auto-discover tests when files change
         this.setupFileWatcher();
+    }
 
+    /**
+     * Initialize the test provider with async operations
+     */
+    public async initialize(): Promise<void> {
         // Initial test discovery
-        this.discoverTests();
+        await this.discoverTests();
     }
 
     private setupFileWatcher(): void {
@@ -347,6 +352,7 @@ interface TestMethodInfo {
 /**
  * Register the Groovy test provider
  */
-export function registerTestProvider(context: vscode.ExtensionContext): void {
-    new GroovyTestProvider(context);
+export async function registerTestProvider(context: vscode.ExtensionContext): Promise<void> {
+    const provider = new GroovyTestProvider(context);
+    await provider.initialize();
 }
