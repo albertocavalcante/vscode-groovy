@@ -194,7 +194,8 @@ export class GradleUtils {
 
         for (const line of lines) {
             // Match dependency lines like "+--- org.apache.groovy:groovy-all:4.0.15"
-            const match = line.match(/[+\\-`\\s]*([a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+)/);
+            // Fixed ReDoS vulnerability by using atomic groups and limiting quantifiers
+            const match = line.match(/^[+\\\-`\s]{0,20}([a-zA-Z0-9._-]{1,100}:[a-zA-Z0-9._-]{1,100}:[a-zA-Z0-9._-]{1,50})/);
             if (match) {
                 dependencies.push(match[1]);
             }
