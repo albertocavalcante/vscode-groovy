@@ -1,0 +1,225 @@
+{
+  "Basic Build Script": {
+    "prefix": "gradle-basic",
+    "body": [
+      "plugins {",
+      "\tid '${1:java}'",
+      "}",
+      "",
+      "repositories {",
+      "\tmavenCentral()",
+      "}",
+      "",
+      "dependencies {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create basic Gradle build script"
+  },
+  "Groovy Application Plugin": {
+    "prefix": "gradle-groovy",
+    "body": [
+      "plugins {",
+      "\tid 'groovy'",
+      "\tid 'application'",
+      "}",
+      "",
+      "repositories {",
+      "\tmavenCentral()",
+      "}",
+      "",
+      "dependencies {",
+      "\timplementation 'org.apache.groovy:groovy-all:4.0.15'",
+      "\t$0",
+      "}",
+      "",
+      "application {",
+      "\tmainClass = '${1:com.example.Main}'",
+      "}"
+    ],
+    "description": "Create Groovy application build script"
+  },
+  "Task Definition": {
+    "prefix": "task",
+    "body": [
+      "task ${1:taskName}(type: ${2:Copy}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a Gradle task"
+  },
+  "Custom Task": {
+    "prefix": "task-custom",
+    "body": [
+      "task ${1:taskName} {",
+      "\tdoLast {",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a custom Gradle task"
+  },
+  "Dependency Implementation": {
+    "prefix": "implementation",
+    "body": [
+      "implementation '${1:group}:${2:name}:${3:version}'"
+    ],
+    "description": "Add implementation dependency"
+  },
+  "Test Implementation": {
+    "prefix": "testimplementation",
+    "body": [
+      "testImplementation '${1:group}:${2:name}:${3:version}'"
+    ],
+    "description": "Add test implementation dependency"
+  },
+  "Spock Testing Dependencies": {
+    "prefix": "spock",
+    "body": [
+      "testImplementation 'org.spockframework:spock-core:2.3-groovy-4.0'",
+      "testImplementation 'org.spockframework:spock-junit4:2.3-groovy-4.0'"
+    ],
+    "description": "Add Spock testing dependencies"
+  },
+  "JUnit Dependencies": {
+    "prefix": "junit",
+    "body": [
+      "testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'",
+      "testRuntimeOnly 'org.junit.platform:junit-platform-launcher'"
+    ],
+    "description": "Add JUnit 5 dependencies"
+  },
+  "Source Sets": {
+    "prefix": "sourcesets",
+    "body": [
+      "sourceSets {",
+      "\t${1:main} {",
+      "\t\t${2:groovy} {",
+      "\t\t\tsrcDirs = ['${3:src/main/groovy}']",
+      "\t\t}",
+      "\t}",
+      "}"
+    ],
+    "description": "Configure source sets"
+  },
+  "Test Configuration": {
+    "prefix": "test-config",
+    "body": [
+      "test {",
+      "\tuseJUnitPlatform()",
+      "\ttestLogging {",
+      "\t\tevents 'passed', 'skipped', 'failed'",
+      "\t}",
+      "}"
+    ],
+    "description": "Configure test task"
+  },
+  "Jar Configuration": {
+    "prefix": "jar-config",
+    "body": [
+      "jar {",
+      "\tmanifest {",
+      "\t\tattributes(",
+      "\t\t\t'Main-Class': '${1:com.example.Main}'",
+      "\t\t)",
+      "\t}",
+      "}"
+    ],
+    "description": "Configure JAR manifest"
+  },
+  "Fat Jar (Shadow)": {
+    "prefix": "fatjar",
+    "body": [
+      "plugins {",
+      "\tid 'com.github.johnrengelman.shadow' version '8.1.1'",
+      "}",
+      "",
+      "shadowJar {",
+      "\tarchiveBaseName = '${1:app}'",
+      "\tarchiveClassifier = ''",
+      "\tarchiveVersion = ''",
+      "\tmanifest {",
+      "\t\tattributes 'Main-Class': '${2:com.example.Main}'",
+      "\t}",
+      "}"
+    ],
+    "description": "Create fat JAR configuration"
+  },
+  "Build Script Block": {
+    "prefix": "buildscript",
+    "body": [
+      "buildscript {",
+      "\trepositories {",
+      "\t\tmavenCentral()",
+      "\t}",
+      "\tdependencies {",
+      "\t\tclasspath '${1:dependency}'",
+      "\t}",
+      "}"
+    ],
+    "description": "Add buildscript block"
+  },
+  "Configuration Block": {
+    "prefix": "configurations",
+    "body": [
+      "configurations {",
+      "\t${1:configName} {",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Create configuration block"
+  },
+  "Publishing": {
+    "prefix": "publishing",
+    "body": [
+      "plugins {",
+      "\tid 'maven-publish'",
+      "}",
+      "",
+      "publishing {",
+      "\tpublications {",
+      "\t\tmaven(MavenPublication) {",
+      "\t\t\tfrom components.java",
+      "\t\t}",
+      "\t}",
+      "}"
+    ],
+    "description": "Configure Maven publishing"
+  },
+  "Wrapper Task": {
+    "prefix": "wrapper",
+    "body": [
+      "wrapper {",
+      "\tgradleVersion = '${1:8.4}'",
+      "\tdistributionType = Wrapper.DistributionType.ALL",
+      "}"
+    ],
+    "description": "Configure Gradle wrapper"
+  },
+  "Extension Configuration": {
+    "prefix": "configure",
+    "body": [
+      "${1:extensionName} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Configure plugin extension"
+  },
+  "Apply Plugin": {
+    "prefix": "apply",
+    "body": [
+      "apply plugin: '${1:plugin-name}'"
+    ],
+    "description": "Apply plugin (legacy syntax)"
+  },
+  "Exclude Dependency": {
+    "prefix": "exclude",
+    "body": [
+      "implementation('${1:group}:${2:name}:${3:version}') {",
+      "\texclude group: '${4:excluded-group}', module: '${5:excluded-module}'",
+      "}"
+    ],
+    "description": "Add dependency with exclusions"
+  }
+}

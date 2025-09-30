@@ -1,0 +1,186 @@
+{
+  "Class Definition": {
+    "prefix": "class",
+    "body": [
+      "class ${1:ClassName} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a Groovy class"
+  },
+  "Method Definition": {
+    "prefix": "method",
+    "body": [
+      "${1:def} ${2:methodName}(${3:params}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a Groovy method"
+  },
+  "Main Method": {
+    "prefix": "main",
+    "body": [
+      "static void main(String[] args) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a main method"
+  },
+  "Property with Getter/Setter": {
+    "prefix": "property",
+    "body": [
+      "private ${1:String} ${2:propertyName}",
+      "",
+      "${1:String} get${2/(.)(.*)/\\u$1$2/}() {",
+      "\treturn ${2:propertyName}",
+      "}",
+      "",
+      "void set${2/(.)(.*)/\\u$1$2/}(${1:String} ${2:propertyName}) {",
+      "\tthis.${2:propertyName} = ${2:propertyName}",
+      "}"
+    ],
+    "description": "Create a property with getter and setter"
+  },
+  "Closure": {
+    "prefix": "closure",
+    "body": [
+      "{ ${1:params} ->",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a closure"
+  },
+  "For Each Loop": {
+    "prefix": "foreach",
+    "body": [
+      "${1:collection}.each { ${2:item} ->",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create a forEach loop"
+  },
+  "If Statement": {
+    "prefix": "if",
+    "body": [
+      "if (${1:condition}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Create an if statement"
+  },
+  "Try-Catch": {
+    "prefix": "try",
+    "body": [
+      "try {",
+      "\t$0",
+      "} catch (${1:Exception} e) {",
+      "\t${2:// handle exception}",
+      "}"
+    ],
+    "description": "Create a try-catch block"
+  },
+  "Switch Statement": {
+    "prefix": "switch",
+    "body": [
+      "switch (${1:variable}) {",
+      "\tcase ${2:value1}:",
+      "\t\t$0",
+      "\t\tbreak",
+      "\tcase ${3:value2}:",
+      "\t\t${4:// action}",
+      "\t\tbreak",
+      "\tdefault:",
+      "\t\t${5:// default action}",
+      "\t\tbreak",
+      "}"
+    ],
+    "description": "Create a switch statement"
+  },
+  "Spock Specification": {
+    "prefix": "spec",
+    "body": [
+      "import spock.lang.Specification",
+      "",
+      "class ${1:ClassName}Spec extends Specification {",
+      "",
+      "\tdef \"${2:feature description}\"() {",
+      "\t\tgiven:",
+      "\t\t$0",
+      "",
+      "\t\twhen:",
+      "\t\t${3:// action}",
+      "",
+      "\t\tthen:",
+      "\t\t${4:// assertion}",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a Spock test specification"
+  },
+  "Spock Test Method": {
+    "prefix": "test",
+    "body": [
+      "def \"${1:test description}\"() {",
+      "\tgiven:",
+      "\t$0",
+      "",
+      "\twhen:",
+      "\t${2:// action}",
+      "",
+      "\tthen:",
+      "\t${3:// assertion}",
+      "}"
+    ],
+    "description": "Create a Spock test method"
+  },
+  "Spock Where Block": {
+    "prefix": "where",
+    "body": [
+      "where:",
+      "${1:param1} | ${2:param2} | ${3:expected}",
+      "${4:value1} | ${5:value2} | ${6:result1}",
+      "${7:value3} | ${8:value4} | ${9:result2}"
+    ],
+    "description": "Create a Spock where block for parameterized tests"
+  },
+  "Groovy Script Shebang": {
+    "prefix": "shebang",
+    "body": [
+      "#!/usr/bin/env groovy",
+      "",
+      "$0"
+    ],
+    "description": "Add Groovy script shebang"
+  },
+  "Collection Filter": {
+    "prefix": "filter",
+    "body": [
+      "${1:collection}.findAll { ${2:it} -> ${3:condition} }"
+    ],
+    "description": "Filter collection elements"
+  },
+  "Collection Map": {
+    "prefix": "map",
+    "body": [
+      "${1:collection}.collect { ${2:it} -> ${3:transformation} }"
+    ],
+    "description": "Transform collection elements"
+  },
+  "String Interpolation": {
+    "prefix": "gstring",
+    "body": [
+      "\"${1:text} \\${${2:variable}} ${3:more text}\""
+    ],
+    "description": "Create a GString with interpolation"
+  },
+  "Multiline String": {
+    "prefix": "multiline",
+    "body": [
+      "\"\"\"",
+      "${1:multiline}",
+      "${2:string}",
+      "\"\"\""
+    ],
+    "description": "Create a multiline string"
+  }
+}

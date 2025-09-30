@@ -1,0 +1,219 @@
+{
+  "Basic Pipeline": {
+    "prefix": "pipeline",
+    "body": [
+      "pipeline {",
+      "\tagent any",
+      "",
+      "\tstages {",
+      "\t\tstage('${1:Build}') {",
+      "\t\t\tsteps {",
+      "\t\t\t\t$0",
+      "\t\t\t}",
+      "\t\t}",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a basic Jenkins pipeline"
+  },
+  "Pipeline with Environment": {
+    "prefix": "pipeline-env",
+    "body": [
+      "pipeline {",
+      "\tagent any",
+      "",
+      "\tenvironment {",
+      "\t\t${1:VAR_NAME} = '${2:value}'",
+      "\t}",
+      "",
+      "\tstages {",
+      "\t\tstage('${3:Build}') {",
+      "\t\t\tsteps {",
+      "\t\t\t\t$0",
+      "\t\t\t}",
+      "\t\t}",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a pipeline with environment variables"
+  },
+  "Stage": {
+    "prefix": "stage",
+    "body": [
+      "stage('${1:Stage Name}') {",
+      "\tsteps {",
+      "\t\t$0",
+      "\t}",
+      "}"
+    ],
+    "description": "Create a pipeline stage"
+  },
+  "Parallel Stages": {
+    "prefix": "parallel",
+    "body": [
+      "stage('${1:Parallel Stage}') {",
+      "\tparallel {",
+      "\t\tstage('${2:Branch 1}') {",
+      "\t\t\tsteps {",
+      "\t\t\t\t${3:// steps for branch 1}",
+      "\t\t\t}",
+      "\t\t}",
+      "\t\tstage('${4:Branch 2}') {",
+      "\t\t\tsteps {",
+      "\t\t\t\t${5:// steps for branch 2}",
+      "\t\t\t}",
+      "\t\t}",
+      "\t}",
+      "}"
+    ],
+    "description": "Create parallel pipeline stages"
+  },
+  "Post Actions": {
+    "prefix": "post",
+    "body": [
+      "post {",
+      "\talways {",
+      "\t\t${1:// always execute}",
+      "\t}",
+      "\tsuccess {",
+      "\t\t${2:// on success}",
+      "\t}",
+      "\tfailure {",
+      "\t\t${3:// on failure}",
+      "\t}",
+      "}"
+    ],
+    "description": "Create post-build actions"
+  },
+  "Shell Command": {
+    "prefix": "sh",
+    "body": [
+      "sh '${1:command}'"
+    ],
+    "description": "Execute shell command"
+  },
+  "Multi-line Shell": {
+    "prefix": "shmulti",
+    "body": [
+      "sh '''",
+      "\t${1:command1}",
+      "\t${2:command2}",
+      "'''"
+    ],
+    "description": "Execute multi-line shell commands"
+  },
+  "Checkout SCM": {
+    "prefix": "checkout",
+    "body": [
+      "checkout scm"
+    ],
+    "description": "Checkout source code"
+  },
+  "Git Checkout": {
+    "prefix": "git",
+    "body": [
+      "git url: '${1:repository-url}', branch: '${2:main}'"
+    ],
+    "description": "Checkout from Git repository"
+  },
+  "Archive Artifacts": {
+    "prefix": "archive",
+    "body": [
+      "archiveArtifacts artifacts: '${1:path/to/artifacts}', fingerprint: true"
+    ],
+    "description": "Archive build artifacts"
+  },
+  "Publish Test Results": {
+    "prefix": "publishtest",
+    "body": [
+      "publishTestResults testResultsPattern: '${1:test-results/*.xml}'"
+    ],
+    "description": "Publish test results"
+  },
+  "Agent Docker": {
+    "prefix": "agent-docker",
+    "body": [
+      "agent {",
+      "\tdocker {",
+      "\t\timage '${1:image:tag}'",
+      "\t\targs '${2:docker-args}'",
+      "\t}",
+      "}"
+    ],
+    "description": "Use Docker agent"
+  },
+  "Agent Label": {
+    "prefix": "agent-label",
+    "body": [
+      "agent {",
+      "\tlabel '${1:node-label}'",
+      "}"
+    ],
+    "description": "Use labeled agent"
+  },
+  "When Condition": {
+    "prefix": "when",
+    "body": [
+      "when {",
+      "\t${1|branch,environment,expression,not,allOf,anyOf|} ${2:condition}",
+      "}"
+    ],
+    "description": "Add when condition to stage"
+  },
+  "Credentials": {
+    "prefix": "credentials",
+    "body": [
+      "withCredentials([${1|string,usernamePassword,sshUserPrivateKey,file|}(credentialsId: '${2:credential-id}', ${3:variable}: '${4:VAR_NAME}')]) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Use Jenkins credentials"
+  },
+  "Input Step": {
+    "prefix": "input",
+    "body": [
+      "input {",
+      "\tmessage '${1:Proceed with deployment?}'",
+      "\tok '${2:Deploy}'",
+      "\tparameters {",
+      "\t\tchoice(name: '${3:ENVIRONMENT}', choices: ['${4:dev}', '${5:staging}', '${6:prod}'], description: '${7:Target environment}')",
+      "\t}",
+      "}"
+    ],
+    "description": "Add user input step"
+  },
+  "Build Job": {
+    "prefix": "build",
+    "body": [
+      "build job: '${1:job-name}', parameters: [",
+      "\tstring(name: '${2:PARAM_NAME}', value: '${3:value}')",
+      "]"
+    ],
+    "description": "Trigger another Jenkins job"
+  },
+  "Matrix Strategy": {
+    "prefix": "matrix",
+    "body": [
+      "matrix {",
+      "\taxes {",
+      "\t\taxis {",
+      "\t\t\tname '${1:PLATFORM}'",
+      "\t\t\tvalues '${2:linux}', '${3:windows}', '${4:mac}'",
+      "\t\t}",
+      "\t\taxis {",
+      "\t\t\tname '${5:VERSION}'",
+      "\t\t\tvalues '${6:11}', '${7:17}', '${8:21}'",
+      "\t\t}",
+      "\t}",
+      "\tstages {",
+      "\t\tstage('${9:Test}') {",
+      "\t\t\tsteps {",
+      "\t\t\t\t$0",
+      "\t\t\t}",
+      "\t\t}",
+      "\t}",
+      "}"
+    ],
+    "description": "Create matrix build strategy"
+  }
+}

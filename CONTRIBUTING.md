@@ -58,8 +58,13 @@ vscode-groovy/
 - `npm run watch` - Watch mode for development
 - `npm run lint` - Run ESLint
 - `npm run check-types` - TypeScript type checking
+- `npm run test` - Run unit tests
+- `npm run test:coverage` - Run tests with coverage report
 - `npm run package` - Build and package VSIX
 - `npm run prepare-server` - Download/prepare Groovy Language Server
+- `npm run prepare-server:local` - Use local JAR for development
+- `npm run prepare-server:download` - Force download from GitHub
+- `npm run prepare-server:custom` - Use custom download URL (set via env var)
 
 ### Testing the Extension
 
@@ -92,7 +97,10 @@ Run quality checks:
 ```bash
 npm run lint
 npm run check-types
+npm run test
 ```
+
+All these checks must pass before submitting a pull request.
 
 ## Making Changes
 
@@ -132,6 +140,7 @@ git commit -m "docs: update configuration examples"
    npm run compile
    npm run lint
    npm run check-types
+   npm run test
    ```
 
 4. **Create a pull request**
@@ -169,10 +178,46 @@ Our automated pipeline includes:
 3. **UI Elements**: Add to `client/src/ui/`
 4. **Server Communication**: Extend `client/src/server/`
 
+## Air-gapped Development
+
+### Custom Language Server Sources
+
+For development in air-gapped environments or with custom language server builds:
+
+#### Environment Variables
+```bash
+# Use custom download URL
+GROOVY_LSP_DOWNLOAD_URL="https://nexus.company.com/groovy-lsp.jar" npm run prepare-server
+
+# Use local development build
+GROOVY_LSP_LOCAL_JAR="/path/to/groovy-lsp.jar" npm run prepare-server:local
+
+# Force download (bypass cache)
+FORCE_DOWNLOAD=true npm run prepare-server
+```
+
+#### VSCode Settings
+For runtime configuration, users can set:
+```json
+{
+  "groovy.server.downloadUrl": "https://artifacts.company.com/groovy-lsp.jar"
+}
+```
+
+#### Testing Custom Download Sources
+```bash
+# Test with mock server
+GROOVY_LSP_DOWNLOAD_URL="https://httpbin.org/status/404" npm run prepare-server
+
+# Test with working URL
+GROOVY_LSP_DOWNLOAD_URL="https://github.com/albertocavalcante/groovy-lsp/releases/download/v0.1.0-alpha/groovy-lsp-0.1.0-alpha-darwin-amd64.jar" npm run prepare-server
+```
+
 ## Testing
 
 ### Manual Testing Checklist
 
+#### Core Functionality
 - [ ] Extension activates without errors
 - [ ] Groovy files are recognized and highlighted
 - [ ] Language server starts successfully
@@ -182,6 +227,25 @@ Our automated pipeline includes:
 - [ ] Settings changes are applied
 - [ ] Extension deactivates cleanly
 
+#### Configuration Testing
+- [ ] `groovy.java.home` setting works with custom Java path
+- [ ] `groovy.compilation.mode` switches between workspace/single-file
+- [ ] `groovy.trace.server` enables verbose logging
+- [ ] `groovy.server.maxNumberOfProblems` limits diagnostic count
+- [ ] `groovy.server.downloadUrl` uses custom JAR source
+
+#### Air-gapped Environment Testing
+- [ ] Custom download URL works with environment variable
+- [ ] Local JAR file detection and usage
+- [ ] Graceful fallback when custom source fails
+- [ ] Error messages provide helpful troubleshooting info
+
+#### Unit Tests
+- [ ] All unit tests pass: `npm run test`
+- [ ] Test coverage is maintained
+- [ ] No TypeScript errors: `npm run check-types`
+- [ ] Code style passes: `npm run lint`
+
 ### File Type Testing
 
 Test with these file types:
@@ -189,6 +253,33 @@ Test with these file types:
 - `.gradle` - Gradle build files
 - `Jenkinsfile` - Jenkins Pipeline files
 - `.gvy`, `.gy`, `.gsh` - Alternative Groovy extensions
+
+### Automated Testing
+
+We have comprehensive unit tests covering:
+
+#### Configuration Tests
+- Settings interface and validation
+- Configuration change detection
+- Default value handling
+
+#### Logger Tests
+- Output channel integration
+- Message formatting
+- Log level handling
+
+#### Gradle Utils Tests
+- Project detection
+- Build file parsing
+- Gradle command generation
+- File discovery with VSCode patterns
+
+Run tests with:
+```bash
+npm run test              # Run all unit tests
+npm run test:coverage     # Run with coverage report
+npm run test:watch        # Watch mode for development
+```
 
 ### Platform Testing
 

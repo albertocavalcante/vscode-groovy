@@ -10,6 +10,8 @@ import {
 } from 'vscode-languageclient/node';
 import { validateJava, showJavaError } from '../java/validator';
 import { setClient } from '../ui/statusBar';
+import { logger } from '../utils/logger';
+import { getConfiguration } from '../configuration/settings';
 
 let client: LanguageClient | undefined;
 let context: ExtensionContext | undefined;
@@ -102,6 +104,8 @@ async function createServerOptions(): Promise<ServerOptions> {
  * Creates client options for the Language Client
  */
 function createClientOptions(): LanguageClientOptions {
+    const config = getConfiguration();
+
     const clientOptions: LanguageClientOptions = {
         // Register the server for Groovy and Jenkinsfile documents
         documentSelector: [
@@ -112,10 +116,19 @@ function createClientOptions(): LanguageClientOptions {
         ],
         synchronize: {
             // Notify the server about file changes to Groovy files in the workspace
-            fileEvents: workspace.createFileSystemWatcher('**/*.{groovy,gvy,gy,gsh,gradle,Jenkinsfile}')
+            fileEvents: workspace.createFileSystemWatcher('**/*.{groovy,gvy,gy,gsh,gradle,Jenkinsfile}'),
+            // Synchronize configuration changes to the server
+            configurationSection: 'groovy'
+        },
+        initializationOptions: {
+            // Pass initial configuration to LSP server
+            compilationMode: config.compilationMode,
+            incrementalThreshold: config.incrementalThreshold,
+            maxWorkspaceFiles: config.maxWorkspaceFiles,
+            maxNumberOfProblems: config.maxNumberOfProblems
         },
         outputChannelName: 'Groovy Language Server',
-        traceOutputChannel: workspace.getConfiguration('groovy').get('trace.server') !== 'off'
+        traceOutputChannel: config.traceServer !== 'off'
             ? window.createOutputChannel('Groovy Language Server Trace')
             : undefined,
         // URI converters for Windows compatibility
@@ -158,11 +171,11 @@ export async function startClient(): Promise<void> {
         setClient(client);
 
         await client.start();
-        console.log('Groovy Language Server started successfully');
+        logger.info('Groovy Language Server started successfully');
 
     } catch (error) {
         const message = `Failed to start Groovy Language Server: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error(message);
+        logger.error(message);
         window.showErrorMessage(message);
 
         // Update status bar to reflect failure
@@ -185,9 +198,9 @@ export async function stopClient(): Promise<void> {
         }
         client = undefined;
         setClient(undefined);
-        console.log('Groovy Language Server stopped');
+        logger.info('Groovy Language Server stopped');
     } catch (error) {
-        console.error('Error stopping Language Server:', error);
+        logger.error(`Error stopping Language Server: ${error}`);
         client = undefined;
         setClient(undefined);
     }
@@ -203,7 +216,7 @@ export async function restartClient(): Promise<void> {
         window.showInformationMessage('Groovy Language Server restarted successfully');
     } catch (error) {
         const message = `Failed to restart Groovy Language Server: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error(message);
+        logger.error(message);
         window.showErrorMessage(message);
     }
 }

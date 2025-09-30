@@ -143,14 +143,29 @@ function fetchJson(url) {
 /**
  * Downloads a file from URL to local path
  */
-function downloadFile(url, filePath) {
+function downloadFile(url, filePath, maxRedirects = 5) {
     return new Promise((resolve, reject) => {
+        let redirectCount = 0;
+
         function handleRequest(requestUrl) {
             const request = https.get(requestUrl, (response) => {
-                // Handle redirects
+                // Handle redirects with limit
                 if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                    console.log(`Following redirect...`);
-                    return handleRequest(response.headers.location);
+                    redirectCount++;
+                    if (redirectCount > maxRedirects) {
+                        reject(new Error(`Too many redirects (${redirectCount}). Maximum allowed: ${maxRedirects}`));
+                        return;
+                    }
+
+                    const redirectUrl = response.headers.location;
+                    try {
+                        validateDownloadUrl(redirectUrl);
+                        console.log(`Following redirect ${redirectCount}/${maxRedirects}...`);
+                        return handleRequest(redirectUrl);
+                    } catch (error) {
+                        reject(new Error(`Invalid redirect URL: ${error.message}`));
+                        return;
+                    }
                 }
 
                 if (response.statusCode !== 200) {
@@ -158,8 +173,17 @@ function downloadFile(url, filePath) {
                     return;
                 }
 
+                // Check content length for security (max 100MB)
+                const contentLength = parseInt(response.headers['content-length'] || '0', 10);
+                const maxFileSize = 100 * 1024 * 1024; // 100MB
+                if (contentLength > maxFileSize) {
+                    reject(new Error(`File too large: ${Math.round(contentLength / 1024 / 1024)}MB. Maximum allowed: ${maxFileSize / 1024 / 1024}MB`));
+                    return;
+                }
+
                 // Create file stream only when we have a successful response
                 const file = fs.createWriteStream(filePath);
+                let downloadedBytes = 0;
 
                 file.on('error', (error) => {
                     fs.unlink(filePath, () => {}); // Clean up on error
@@ -169,6 +193,17 @@ function downloadFile(url, filePath) {
                 file.on('finish', () => {
                     file.close();
                     resolve();
+                });
+
+                // Track download progress and enforce size limit
+                response.on('data', (chunk) => {
+                    downloadedBytes += chunk.length;
+                    if (downloadedBytes > maxFileSize) {
+                        file.destroy();
+                        fs.unlink(filePath, () => {});
+                        reject(new Error(`Download exceeded maximum file size limit: ${maxFileSize / 1024 / 1024}MB`));
+                        return;
+                    }
                 });
 
                 response.pipe(file);
@@ -238,6 +273,51 @@ function selectPlatformJar(assets) {
     }
 
     return jarAsset;
+}
+
+/**
+ * Validates a download URL for security
+ */
+function validateDownloadUrl(url) {
+    if (!url || typeof url !== 'string') {
+        throw new Error('Invalid URL: URL must be a non-empty string');
+    }
+
+    try {
+        const parsedUrl = new URL(url);
+
+        // Only allow HTTP/HTTPS protocols
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            throw new Error(`Invalid URL protocol: ${parsedUrl.protocol}. Only HTTP and HTTPS are allowed.`);
+        }
+
+        // Prevent localhost/private network access for security
+        const hostname = parsedUrl.hostname.toLowerCase();
+        if (hostname === 'localhost' ||
+            hostname.startsWith('127.') ||
+            hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') ||
+            (hostname.startsWith('172.') && hostname.split('.')[1] >= 16 && hostname.split('.')[1] <= 31)) {
+            console.warn('Warning: Downloading from private network address');
+        }
+
+    } catch (error) {
+        throw new Error(`Invalid URL format: ${error.message}`);
+    }
+}
+
+/**
+ * Downloads JAR from custom URL
+ */
+async function downloadFromCustomUrl(customUrl) {
+    try {
+        validateDownloadUrl(customUrl);
+        console.log(`Downloading from custom URL: ${customUrl}`);
+        await downloadFile(customUrl, JAR_PATH);
+        console.log(`✓ Downloaded from custom source and saved as ${CANONICAL_JAR_NAME}`);
+    } catch (error) {
+        throw new Error(`Failed to download from custom URL: ${error.message}`);
+    }
 }
 
 /**
@@ -315,9 +395,17 @@ async function prepareServer() {
             return;
         }
 
-        // Download from GitHub releases
-        console.log('Downloading from GitHub releases...');
-        await downloadLatestRelease();
+        // Check for custom download URL first
+        const customUrl = process.env.GROOVY_LSP_DOWNLOAD_URL;
+
+        if (customUrl) {
+            console.log('Using custom download URL...');
+            await downloadFromCustomUrl(customUrl);
+        } else {
+            // Download from GitHub releases
+            console.log('Downloading from GitHub releases...');
+            await downloadLatestRelease();
+        }
 
     } catch (error) {
         console.error('❌ Error preparing Groovy Language Server:');
@@ -334,8 +422,10 @@ async function prepareServer() {
         }
 
         console.error('');
-        console.error('You can also manually copy a JAR file to:');
-        console.error(`  ${JAR_PATH}`);
+        console.error('You can also:');
+        console.error(`1. Manually copy a JAR file to: ${JAR_PATH}`);
+        console.error('2. Set GROOVY_LSP_DOWNLOAD_URL environment variable to a custom download URL');
+        console.error('3. Configure "groovy.server.downloadUrl" in VSCode settings for air-gapped environments');
 
         process.exit(1);
     }
