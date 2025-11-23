@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { ExtensionContext } from 'vscode';
 import { IFileSystem, NodeFileSystem } from './FileSystem';
 
 export interface ServerResolverConfig {
@@ -12,7 +13,7 @@ export class ServerResolver {
         this.fs = fs;
     }
 
-    async resolve(context: any, config: ServerResolverConfig): Promise<string> {
+    async resolve(context: ExtensionContext, config: ServerResolverConfig): Promise<string> {
         if (config.serverPath) {
             if (this.fs.existsSync(config.serverPath)) {
                 return config.serverPath;
