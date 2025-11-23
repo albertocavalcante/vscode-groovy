@@ -87,12 +87,12 @@ export class ReplService {
              return;
         }
 
-        this.writeEmitter.fire(`> ${code.replace(/\n/g, '\r\n> ')}\r\n`);
+        this.writeEmitter.fire(`> ${code.replaceAll('\n', '\r\n> ')}\r\n`);
 
         try {
             const result = await this.replClient.evaluate(code);
             if (result.output) {
-                this.writeEmitter.fire(result.output.replace(/\n/g, '\r\n'));
+                this.writeEmitter.fire(result.output.replaceAll('\n', '\r\n'));
             }
             if (result.result && result.result !== 'null') {
                 this.writeEmitter.fire(`<= ${result.result}\r\n`);
