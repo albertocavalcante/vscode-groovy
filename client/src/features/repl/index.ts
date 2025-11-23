@@ -5,10 +5,8 @@ import { getClient } from '../../server/client';
 export class ReplService {
     private replClient: GroovyReplClient | undefined;
     private terminal: vscode.Terminal | undefined;
-    private writeEmitter = new vscode.EventEmitter<string>();
-    private closeEmitter = new vscode.EventEmitter<number>();
-
-    constructor() {}
+    private readonly writeEmitter = new vscode.EventEmitter<string>();
+    private readonly closeEmitter = new vscode.EventEmitter<number>();
 
     public initialize(context: vscode.ExtensionContext) {
         context.subscriptions.push(
