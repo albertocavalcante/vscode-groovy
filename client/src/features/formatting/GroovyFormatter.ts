@@ -1,10 +1,10 @@
 import { LanguageClient } from 'vscode-languageclient/node';
-import { DocumentFormattingRequest, TextEdit } from 'vscode-languageserver-protocol';
+import { DocumentFormattingRequest, TextEdit, FormattingOptions } from 'vscode-languageserver-protocol';
 
 export class GroovyFormatter {
-    constructor(private readonly client: LanguageClient) {}
+    constructor(private client: LanguageClient) {}
 
-    async formatDocument(documentUri: string, options: any): Promise<TextEdit[] | null> {
+    async formatDocument(documentUri: string, options: FormattingOptions): Promise<TextEdit[] | null> {
         const params = {
             textDocument: { uri: documentUri },
             options: options
