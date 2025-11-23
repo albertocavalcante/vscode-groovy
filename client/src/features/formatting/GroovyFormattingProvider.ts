@@ -10,7 +10,7 @@ import { LanguageClient } from 'vscode-languageclient/node';
 import { GroovyFormatter } from './GroovyFormatter';
 
 export class GroovyFormattingProvider implements DocumentFormattingEditProvider {
-    private formatter: GroovyFormatter;
+    private readonly formatter: GroovyFormatter;
 
     constructor(client: LanguageClient) {
         this.formatter = new GroovyFormatter(client);
