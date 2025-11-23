@@ -84,6 +84,10 @@ export class ReplService {
         }
 
         if (!this.replClient) {
+            // If replClient is still undefined after attempting to start,
+            // it means startRepl() failed (e.g., LSP not ready) and already showed an error.
+            // Log this for clarity and prevent further execution.
+            console.error('REPL client could not be initialized. Evaluation aborted.');
              return;
         }
 
