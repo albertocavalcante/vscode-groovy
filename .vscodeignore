@@ -14,3 +14,15 @@ node_modules/
 .github/
 .DS_Store
 *.log
+.claude/
+.release-please-manifest.json
+release-please-config.json
+commitlint.config.js
+esbuild.js
+eslint.config.mjs
+.c8rc.json
+.mocharc.json
+VSCODE_EXTENSION_ANALYSIS_AND_IMPROVEMENTS.md
+REFACTORING.md
+test-format.groovy
+CONTRIBUTING.md
