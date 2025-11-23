@@ -10,8 +10,6 @@ import { registerCommands } from './commands';
 import { setupConfigurationWatcher } from './configuration/watcher';
 import { registerGradleTaskProvider } from './features/gradle/taskProvider';
 import { registerTestProvider } from './features/testing/testProvider';
-import { initializeRepl, cleanupRepl } from './features/repl';
-import { registerFormattingCommands } from './features/formatting/formatter';
 import { logger } from './utils/logger';
 
 /**
@@ -44,12 +42,6 @@ export async function activate(context: ExtensionContext) {
         // Register test provider
         await registerTestProvider(context);
 
-        // Register formatting commands
-        registerFormattingCommands(context);
-
-        // Initialize REPL functionality
-        initializeRepl(context);
-
         // Start the Language Server
         await startClient();
 
@@ -70,9 +62,6 @@ export async function deactivate(): Promise<void> {
     logger.info('Deactivating Groovy Language Extension...');
 
     try {
-        // Cleanup REPL resources
-        await cleanupRepl();
-
         // Stop the Language Server
         await stopClient();
 
