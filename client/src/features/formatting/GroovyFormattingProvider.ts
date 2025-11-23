@@ -17,6 +17,9 @@ export class GroovyFormattingProvider implements DocumentFormattingEditProvider 
     }
 
     provideDocumentFormattingEdits(document: TextDocument, options: FormattingOptions, token: CancellationToken): ProviderResult<TextEdit[]> {
+        if (token.isCancellationRequested) {
+            return [];
+        }
         return this.formatter.formatDocument(document.uri.toString(), options) as Promise<TextEdit[]>;
     }
 }
