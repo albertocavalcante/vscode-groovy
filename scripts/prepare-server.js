@@ -1,14 +1,15 @@
 /**
  * Prepares the Groovy Language Server JAR
  * Priority order:
- * 1. Use existing server/groovy-lsp.jar if present (unless FORCE_DOWNLOAD=true)
- * 2. Copy from local groovy-lsp build if available and PREFER_LOCAL=true
+ * 1. Use existing server/groovy-lsp.jar if valid (unless FORCE_DOWNLOAD=true)
+ * 2. Copy from local groovy-lsp build if available and PREFER_LOCAL=true (or default behavior if local found)
  * 3. Download from GitHub releases
  */
 
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const AdmZip = require('adm-zip');
 
 const SERVER_DIR = path.join(__dirname, '..', 'server');
 const CANONICAL_JAR_NAME = 'groovy-lsp.jar';
@@ -16,14 +17,6 @@ const JAR_PATH = path.join(SERVER_DIR, CANONICAL_JAR_NAME);
 
 // GitHub release URLs
 const GITHUB_RELEASE_API = 'https://api.github.com/repos/albertocavalcante/groovy-lsp/releases/latest';
-
-/**
- * FIXME: Remove platform-specific logic once groovy-lsp publishes universal JAR
- * Currently we need to select platform-specific JARs because groovy-lsp publishes
- * separate JARs for each platform. This should be simplified to a single universal
- * JAR in the future for easier distribution and maintenance.
- * TODO: Create issue in groovy-lsp to publish universal JAR
- */
 
 /**
  * Gets platform-specific JAR suffix for current OS
@@ -37,6 +30,47 @@ function getPlatformJarSuffix() {
     };
 
     return platformMap[process.platform] || 'linux-amd64'; // Default to linux for unknown platforms
+}
+
+/**
+ * Validates that a JAR file is a valid ZIP and contains a manifest
+ * and meets minimum size requirements.
+ * @param {string} jarPath Path to the JAR file
+ * @returns {boolean} True if valid
+ * @throws {Error} If invalid with reason
+ */
+function validateJar(jarPath) {
+    try {
+        const stats = fs.statSync(jarPath);
+        // Check for minimum size (e.g. < 10KB is likely a placeholder or error)
+        if (stats.size < 10 * 1024) {
+            throw new Error(`JAR file is too small (${stats.size} bytes). Likely a placeholder or corrupted download.`);
+        }
+
+        const zip = new AdmZip(jarPath);
+        const zipEntries = zip.getEntries();
+        
+        // Check for MANIFEST.MF
+        const hasManifest = zipEntries.some(entry => 
+            entry.entryName.toUpperCase() === 'META-INF/MANIFEST.MF'
+        );
+
+        if (!hasManifest) {
+            throw new Error('JAR file is missing META-INF/MANIFEST.MF');
+        }
+
+        // Check for at least some class files to ensure it's not empty/source jar
+        const hasClassFiles = zipEntries.some(entry => entry.entryName.endsWith('.class'));
+        if (!hasClassFiles) {
+             console.warn('Warning: JAR file contains no .class files');
+        }
+
+        console.log(`✓ Validated JAR: ${path.basename(jarPath)} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+        return true;
+
+    } catch (error) {
+        throw new Error(`Invalid JAR file: ${error.message}`);
+    }
 }
 
 /**
@@ -70,11 +104,16 @@ function findLocalGroovyLspJar() {
             // Otherwise, search for JAR files in the directory
             if (fs.existsSync(searchPath) && fs.statSync(searchPath).isDirectory()) {
                 const jarFiles = fs.readdirSync(searchPath)
-                    .filter(file => file.endsWith('.jar') && file.includes('groovy-lsp'))
-                    .sort(); // Sort to get consistent results
+                    .filter(file => file.endsWith('.jar') && file.includes('groovy-lsp') && !file.includes('-sources') && !file.includes('-javadoc'))
+                    .sort((a, b) => {
+                        // Sort by modification time, newest first
+                        const statA = fs.statSync(path.join(searchPath, a));
+                        const statB = fs.statSync(path.join(searchPath, b));
+                        return statB.mtime.getTime() - statA.mtime.getTime();
+                    });
 
                 if (jarFiles.length > 0) {
-                    const foundJar = path.join(searchPath, jarFiles[0]); // Use first match
+                    const foundJar = path.join(searchPath, jarFiles[0]); // Use newest match
                     console.log(`Found local JAR: ${foundJar}`);
                     return foundJar;
                 }
@@ -143,14 +182,29 @@ function fetchJson(url) {
 /**
  * Downloads a file from URL to local path
  */
-function downloadFile(url, filePath) {
+function downloadFile(url, filePath, maxRedirects = 5) {
     return new Promise((resolve, reject) => {
+        let redirectCount = 0;
+
         function handleRequest(requestUrl) {
             const request = https.get(requestUrl, (response) => {
-                // Handle redirects
+                // Handle redirects with limit
                 if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                    console.log(`Following redirect...`);
-                    return handleRequest(response.headers.location);
+                    redirectCount++;
+                    if (redirectCount > maxRedirects) {
+                        reject(new Error(`Too many redirects (${redirectCount}). Maximum allowed: ${maxRedirects}`));
+                        return;
+                    }
+
+                    const redirectUrl = response.headers.location;
+                    try {
+                        validateDownloadUrl(redirectUrl);
+                        console.log(`Following redirect ${redirectCount}/${maxRedirects}...`);
+                        return handleRequest(redirectUrl);
+                    } catch (error) {
+                        reject(new Error(`Invalid redirect URL: ${error.message}`));
+                        return;
+                    }
                 }
 
                 if (response.statusCode !== 200) {
@@ -158,8 +212,17 @@ function downloadFile(url, filePath) {
                     return;
                 }
 
+                // Check content length for security (max 100MB)
+                const contentLength = parseInt(response.headers['content-length'] || '0', 10);
+                const maxFileSize = 100 * 1024 * 1024; // 100MB
+                if (contentLength > maxFileSize) {
+                    reject(new Error(`File too large: ${Math.round(contentLength / 1024 / 1024)}MB. Maximum allowed: ${maxFileSize / 1024 / 1024}MB`));
+                    return;
+                }
+
                 // Create file stream only when we have a successful response
                 const file = fs.createWriteStream(filePath);
+                let downloadedBytes = 0;
 
                 file.on('error', (error) => {
                     fs.unlink(filePath, () => {}); // Clean up on error
@@ -169,6 +232,17 @@ function downloadFile(url, filePath) {
                 file.on('finish', () => {
                     file.close();
                     resolve();
+                });
+
+                // Track download progress and enforce size limit
+                response.on('data', (chunk) => {
+                    downloadedBytes += chunk.length;
+                    if (downloadedBytes > maxFileSize) {
+                        file.destroy();
+                        fs.unlink(filePath, () => {});
+                        reject(new Error(`Download exceeded maximum file size limit: ${maxFileSize / 1024 / 1024}MB`));
+                        return;
+                    }
                 });
 
                 response.pipe(file);
@@ -224,7 +298,6 @@ function selectPlatformJar(assets) {
 
     const platformSuffix = getPlatformJarSuffix();
 
-    // TODO: Simplify to single JAR download once groovy-lsp publishes universal JAR
     // First, try to find platform-specific JAR
     let jarAsset = assets.find(a =>
         a.name.endsWith('.jar') &&
@@ -238,6 +311,52 @@ function selectPlatformJar(assets) {
     }
 
     return jarAsset;
+}
+
+/**
+ * Validates a download URL for security
+ */
+function validateDownloadUrl(url) {
+    if (!url || typeof url !== 'string') {
+        throw new Error('Invalid URL: URL must be a non-empty string');
+    }
+
+    try {
+        const parsedUrl = new URL(url);
+
+        // Only allow HTTP/HTTPS protocols
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            throw new Error(`Invalid URL protocol: ${parsedUrl.protocol}. Only HTTP and HTTPS are allowed.`);
+        }
+
+        // Prevent localhost/private network access for security
+        const hostname = parsedUrl.hostname.toLowerCase();
+        if (hostname === 'localhost' ||
+            hostname.startsWith('127.') ||
+            hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') ||
+            (hostname.startsWith('172.') && hostname.split('.')[1] >= 16 && hostname.split('.')[1] <= 31)) {
+            console.warn('Warning: Downloading from private network address');
+        }
+
+    } catch (error) {
+        throw new Error(`Invalid URL format: ${error.message}`);
+    }
+}
+
+/**
+ * Downloads JAR from custom URL
+ */
+async function downloadFromCustomUrl(customUrl) {
+    try {
+        validateDownloadUrl(customUrl);
+        console.log(`Downloading from custom URL: ${customUrl}`);
+        await downloadFile(customUrl, JAR_PATH);
+        validateJar(JAR_PATH);
+        console.log(`✓ Downloaded from custom source and saved as ${CANONICAL_JAR_NAME}`);
+    } catch (error) {
+        throw new Error(`Failed to download from custom URL: ${error.message}`);
+    }
 }
 
 /**
@@ -259,6 +378,7 @@ async function downloadLatestRelease() {
 
         console.log(`Downloading ${jarAsset.name} from release ${releaseInfo.tag_name}...`);
         await downloadFile(jarAsset.browser_download_url, JAR_PATH);
+        validateJar(JAR_PATH);
         console.log(`✓ Downloaded and saved as ${CANONICAL_JAR_NAME}`);
 
     } catch (error) {
@@ -278,7 +398,9 @@ async function prepareServer() {
         }
 
         const forceDownload = process.env.FORCE_DOWNLOAD === 'true';
-        const preferLocal = process.env.PREFER_LOCAL === 'true';
+        // Default to preferring local if not explicitly set to false, 
+        // or if explicitly set to true.
+        const preferLocal = process.env.PREFER_LOCAL !== 'false';
 
         // Try local build first if preferred
         if (preferLocal) {
@@ -288,36 +410,61 @@ async function prepareServer() {
                 let shouldCopy = true;
 
                 if (!forceDownload && fs.existsSync(JAR_PATH)) {
-                    // Compare timestamps to see if local build is newer
-                    const localStat = fs.statSync(localJarPath);
-                    const existingStat = fs.statSync(JAR_PATH);
+                    try {
+                        // Validate existing JAR first
+                        validateJar(JAR_PATH);
+                        
+                        // Compare timestamps to see if local build is newer
+                        const localStat = fs.statSync(localJarPath);
+                        const existingStat = fs.statSync(JAR_PATH);
 
-                    if (localStat.mtime <= existingStat.mtime) {
-                        console.log(`✓ Using existing ${CANONICAL_JAR_NAME} (up to date)`);
-                        shouldCopy = false;
+                        if (localStat.mtime <= existingStat.mtime) {
+                            console.log(`✓ Using existing ${CANONICAL_JAR_NAME} (up to date)`);
+                            shouldCopy = false;
+                        }
+                    } catch (e) {
+                        console.log(`Existing JAR invalid, will replace: ${e.message}`);
+                        shouldCopy = true;
                     }
                 }
 
                 if (shouldCopy) {
                     console.log(`Copying from local build: ${localJarPath}`);
                     fs.copyFileSync(localJarPath, JAR_PATH);
+                    validateJar(JAR_PATH);
                     console.log(`✓ Copied to ${CANONICAL_JAR_NAME}`);
                 }
                 return;
             } else {
-                console.log('PREFER_LOCAL=true but no local JAR found, falling back to download...');
+                console.log('Local JAR lookup failed or no local JAR found.');
+                if (process.env.PREFER_LOCAL === 'true') {
+                     console.log('PREFER_LOCAL=true was set, but no local JAR found. Falling back to download.');
+                }
             }
         }
 
         // Check if JAR already exists (unless force download)
         if (!forceDownload && fs.existsSync(JAR_PATH)) {
-            console.log(`✓ Using existing ${CANONICAL_JAR_NAME}`);
-            return;
+            try {
+                validateJar(JAR_PATH);
+                console.log(`✓ Using existing ${CANONICAL_JAR_NAME}`);
+                return;
+            } catch (e) {
+                 console.log(`Existing JAR invalid, downloading new one: ${e.message}`);
+            }
         }
 
-        // Download from GitHub releases
-        console.log('Downloading from GitHub releases...');
-        await downloadLatestRelease();
+        // Check for custom download URL first
+        const customUrl = process.env.GROOVY_LSP_DOWNLOAD_URL;
+
+        if (customUrl) {
+            console.log('Using custom download URL...');
+            await downloadFromCustomUrl(customUrl);
+        } else {
+            // Download from GitHub releases
+            console.log('Downloading from GitHub releases...');
+            await downloadLatestRelease();
+        }
 
     } catch (error) {
         console.error('❌ Error preparing Groovy Language Server:');
@@ -334,8 +481,10 @@ async function prepareServer() {
         }
 
         console.error('');
-        console.error('You can also manually copy a JAR file to:');
-        console.error(`  ${JAR_PATH}`);
+        console.error('You can also:');
+        console.error(`1. Manually copy a valid JAR file to: ${JAR_PATH}`);
+        console.error('2. Set GROOVY_LSP_DOWNLOAD_URL environment variable to a custom download URL');
+        console.error('3. Configure "groovy.server.downloadUrl" in VSCode settings for air-gapped environments');
 
         process.exit(1);
     }

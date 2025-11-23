@@ -4,6 +4,12 @@ export interface GroovyConfiguration {
     javaHome: string | undefined;
     traceServer: 'off' | 'messages' | 'verbose';
     maxNumberOfProblems: number;
+    compilationMode: 'workspace' | 'single-file';
+    incrementalThreshold: number;
+    maxWorkspaceFiles: number;
+    serverDownloadUrl: string | undefined;
+    formatEnable: boolean;
+    formatOnSave: boolean;
 }
 
 /**
@@ -15,7 +21,13 @@ export function getConfiguration(): GroovyConfiguration {
     return {
         javaHome: config.get<string>('java.home'),
         traceServer: config.get<'off' | 'messages' | 'verbose'>('trace.server', 'off'),
-        maxNumberOfProblems: config.get<number>('server.maxNumberOfProblems', 100)
+        maxNumberOfProblems: config.get<number>('server.maxNumberOfProblems', 100),
+        compilationMode: config.get<'workspace' | 'single-file'>('compilation.mode', 'workspace'),
+        incrementalThreshold: config.get<number>('compilation.incrementalThreshold', 50),
+        maxWorkspaceFiles: config.get<number>('compilation.maxWorkspaceFiles', 500),
+        serverDownloadUrl: config.get<string>('server.downloadUrl'),
+        formatEnable: config.get<boolean>('format.enable', true),
+        formatOnSave: config.get<boolean>('format.onSave', false)
     };
 }
 
@@ -38,5 +50,23 @@ export function affectsJavaConfiguration(event: ConfigurationChangeEvent): boole
  */
 export function affectsServerConfiguration(event: ConfigurationChangeEvent): boolean {
     return affectsConfiguration(event, 'trace.server') ||
-           affectsConfiguration(event, 'server.maxNumberOfProblems');
+           affectsConfiguration(event, 'server.maxNumberOfProblems') ||
+           affectsConfiguration(event, 'server.downloadUrl');
+}
+
+/**
+ * Checks if a configuration change affects compilation settings
+ */
+export function affectsCompilationConfiguration(event: ConfigurationChangeEvent): boolean {
+    return affectsConfiguration(event, 'compilation.mode') ||
+           affectsConfiguration(event, 'compilation.incrementalThreshold') ||
+           affectsConfiguration(event, 'compilation.maxWorkspaceFiles');
+}
+
+/**
+ * Checks if a configuration change affects formatting settings
+ */
+export function affectsFormattingConfiguration(event: ConfigurationChangeEvent): boolean {
+    return affectsConfiguration(event, 'format.enable') ||
+           affectsConfiguration(event, 'format.onSave');
 }
