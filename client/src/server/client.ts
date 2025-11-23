@@ -10,6 +10,8 @@ import {
 } from 'vscode-languageclient/node';
 import { validateJava, showJavaError } from '../java/validator';
 import { setClient } from '../ui/statusBar';
+import { getConfiguration } from '../configuration/settings';
+import { ServerResolver } from '../services/ServerResolver';
 
 let client: LanguageClient | undefined;
 let context: ExtensionContext | undefined;
@@ -28,19 +30,21 @@ export function getClient(): LanguageClient | undefined {
 /**
  * Gets the path to the Groovy Language Server JAR
  */
-function getServerJarPath(): string {
+async function getServerJarPath(): Promise<string> {
     if (!context) {
         throw new Error('Extension context not initialized');
     }
 
-    const jarName = 'groovy-lsp.jar';
-    const serverDir = context.asAbsolutePath('server');
-    const jarPath = path.join(serverDir, jarName);
+    const config = getConfiguration();
+    const resolver = new ServerResolver();
 
-    if (!fs.existsSync(jarPath)) {
+    try {
+        return await resolver.resolve(context, { serverPath: config.serverPath });
+    } catch (error) {
         const message =
-            `Groovy Language Server JAR not found at ${jarPath}.\n\n` +
+            `Groovy Language Server JAR not found.\n\n` +
             `The JAR should be automatically downloaded during extension installation. ` +
+            `If you have a custom path configured, please verify it exists. ` +
             `If this error persists, please report it as an issue.`;
 
         window.showErrorMessage(message, 'Open Issues').then(selection => {
@@ -49,17 +53,15 @@ function getServerJarPath(): string {
             }
         });
 
-        throw new Error(`Groovy Language Server JAR not found: ${jarPath}`);
+        throw error;
     }
-
-    return jarPath;
 }
 
 /**
  * Creates server options for launching the Groovy Language Server
  */
 async function createServerOptions(): Promise<ServerOptions> {
-    const jarPath = getServerJarPath();
+    const jarPath = await getServerJarPath();
     const javaValidation = await validateJava();
 
     if (!javaValidation.isValid) {
