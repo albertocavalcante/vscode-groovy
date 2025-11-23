@@ -8,6 +8,7 @@ import { initializeClient, startClient, stopClient } from './server/client';
 import { registerStatusBarItem } from './ui/statusBar';
 import { registerCommands } from './commands';
 import { setupConfigurationWatcher } from './configuration/watcher';
+import { registerFormattingCommands } from './features/formatting/formatter';
 
 /**
  * Activates the extension
@@ -29,6 +30,9 @@ export async function activate(context: ExtensionContext) {
         // Setup configuration watchers
         const configWatcher = setupConfigurationWatcher();
         context.subscriptions.push(configWatcher);
+
+        // Register formatting commands
+        registerFormattingCommands(context);
 
         // Start the Language Server
         await startClient();
