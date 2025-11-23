@@ -8,6 +8,7 @@ import { initializeClient, startClient, stopClient } from './server/client';
 import { registerStatusBarItem } from './ui/statusBar';
 import { registerCommands } from './commands';
 import { setupConfigurationWatcher } from './configuration/watcher';
+import { initializeRepl, cleanupRepl } from './features/repl';
 
 /**
  * Activates the extension
@@ -30,6 +31,9 @@ export async function activate(context: ExtensionContext) {
         const configWatcher = setupConfigurationWatcher();
         context.subscriptions.push(configWatcher);
 
+        // Initialize REPL functionality
+        initializeRepl(context);
+
         // Start the Language Server
         await startClient();
 
@@ -50,6 +54,9 @@ export async function deactivate(): Promise<void> {
     console.log('Deactivating Groovy Language Extension...');
 
     try {
+        // Cleanup REPL resources
+        await cleanupRepl();
+
         await stopClient();
         console.log('Groovy Language Extension deactivated successfully');
     } catch (error) {
