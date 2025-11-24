@@ -26,7 +26,7 @@ async function main() {
     // Fetch latest release tag (cache bust when groovy-lsp release changes)
     let tag = 'unknown';
     try {
-        // Silence verbose logs from prepare-server while computing tag
+        // Redirect verbose logs from prepare-server to stderr while computing tag
         const originalLog = console.log;
         console.log = (...args) => console.error(...args);
         try {
