@@ -31,11 +31,16 @@ export class MockThemeColor {
     constructor(public id: string) {}
 }
 
+export const mockWorkspace = {
+    getConfiguration: sinon.stub()
+};
+
 export const vscode = {
     tasks: mockTasks,
     Task: MockTask,
     ShellExecution: MockShellExecution,
     ThemeColor: MockThemeColor,
+    workspace: mockWorkspace,
     // Stubs for other vscode APIs can be added here
     window: {
         createStatusBarItem: sinon.stub().returns({

@@ -175,6 +175,30 @@
           "type": "boolean",
           "default": true,
           "description": "Enable/disable code formatting for Groovy files"
+        },
+        "jenkins.sharedLibraries": {
+          "type": "array",
+          "default": [],
+          "description": "Jenkins shared libraries to include in the classpath",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the shared library"
+              },
+              "url": {
+                "type": "string",
+                "description": "Git repository URL for the shared library"
+              },
+              "branch": {
+                "type": "string",
+                "description": "Git branch to use (defaults to 'master')",
+                "default": "master"
+              }
+            },
+            "required": ["name", "url"]
+          }
         }
       }
     }
