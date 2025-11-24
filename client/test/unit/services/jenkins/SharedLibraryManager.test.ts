@@ -85,13 +85,19 @@ describe('SharedLibraryManager', () => {
             expect(mockDownloader.download.secondCall.args[0]).to.deep.equal(libraries[1]);
         });
 
-        it('should not send notification when no libraries are configured', async () => {
+        it('should send empty array notification when no libraries are configured', async () => {
             mockGetConfig.returns([]);
+            mockResolver.resolveClasspaths.returns([]);
 
             await manager.initialize();
 
             expect(mockDownloader.download.notCalled).to.be.true;
-            expect(mockClient.sendNotification.notCalled).to.be.true;
+            expect(mockClient.sendNotification.calledOnce).to.be.true;
+            expect(mockClient.sendNotification.firstCall.args[1]).to.deep.equal({
+                settings: {
+                    externalClasspaths: []
+                }
+            });
         });
 
         it('should handle download errors gracefully', async () => {

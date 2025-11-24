@@ -57,7 +57,7 @@ export class LibraryDownloader {
         const currentBranch = branchInfo.current;
 
         // Checkout the required branch if different
-        if (currentBranch !== library.branch) {
+        if (currentBranch && currentBranch !== library.branch) {
             await git.checkout(library.branch);
         }
 

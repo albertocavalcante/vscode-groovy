@@ -26,6 +26,8 @@ export class SharedLibraryManager {
         const libraries = getJenkinsLibrariesConfiguration();
 
         if (libraries.length === 0) {
+            // Send empty classpath to clear any previously set libraries
+            await this.updateClasspaths([]);
             return;
         }
 
@@ -61,12 +63,11 @@ export class SharedLibraryManager {
     private async updateClasspaths(libraries: ReturnType<typeof getJenkinsLibrariesConfiguration>): Promise<void> {
         const classpaths = this.resolver.resolveClasspaths(libraries);
 
-        if (classpaths.length > 0) {
-            await this.client.sendNotification('workspace/didChangeConfiguration', {
-                settings: {
-                    externalClasspaths: classpaths
-                }
-            });
-        }
+        // Always send notification to ensure server gets updates (including empty array when libraries are removed)
+        await this.client.sendNotification('workspace/didChangeConfiguration', {
+            settings: {
+                externalClasspaths: classpaths
+            }
+        });
     }
 }

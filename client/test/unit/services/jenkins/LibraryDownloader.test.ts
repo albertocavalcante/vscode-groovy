@@ -16,7 +16,7 @@ describe('LibraryDownloader', () => {
             clone: sinon.stub().resolves(),
             pull: sinon.stub().resolves(),
             checkout: sinon.stub().resolves(),
-            branch: sinon.stub().resolves({ current: 'master' })
+            branch: sinon.stub().resolves({ current: 'main' })
         });
 
         // Mock fs
@@ -130,7 +130,7 @@ describe('LibraryDownloader', () => {
 
             mockFs.existsSync.returns(true);
             const git = {
-                branch: sinon.stub().resolves({ current: 'master' }),
+                branch: sinon.stub().resolves({ current: 'main' }),
                 pull: sinon.stub().rejects(new Error('Pull failed'))
             };
             mockSimpleGit.returns(git);
