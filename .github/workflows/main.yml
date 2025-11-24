@@ -29,11 +29,25 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Compute Groovy LSP cache key
+        id: groovy_lsp_cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="scripts/prepare-server.js"
+          if [[ -f "$file" ]]; then
+            hash=$(node -e "const { createHash } = require('crypto'); const fs = require('fs'); const file = process.argv[1]; const data = fs.readFileSync(file); process.stdout.write(createHash('sha256').update(data).digest('hex'));" "$file")
+            echo "hash=${hash}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Hash source ${file} not found, using fallback key" >&2
+            echo "hash=missing" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Cache Groovy LSP
         uses: actions/cache@v4
         with:
           path: server/groovy-lsp.jar
-          key: groovy-lsp-${{ runner.os }}-${{ hashFiles('scripts/prepare-server.js') }}
+          key: groovy-lsp-${{ runner.os }}-${{ steps.groovy_lsp_cache.outputs.hash }}
 
       - name: Install dependencies
         run: npm ci
