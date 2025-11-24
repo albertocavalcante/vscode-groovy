@@ -380,7 +380,10 @@ if (require.main === module) {
         console.log('✅ Server preparation complete!');
     }
 
-    run();
+    run().catch(error => {
+        console.error('Failed to prepare Groovy Language Server:', error);
+        process.exit(1);
+    }); // NOSONAR: top-level await is not available in this CommonJS entrypoint
 }
 
 module.exports = {
