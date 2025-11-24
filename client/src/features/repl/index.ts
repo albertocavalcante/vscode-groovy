@@ -8,7 +8,7 @@ export class ReplService implements vscode.Disposable {
     private terminal: vscode.Terminal | undefined;
     private readonly writeEmitter = new vscode.EventEmitter<string>();
     private readonly closeEmitter = new vscode.EventEmitter<number>();
-    private statusBar: ReplStatusBar;
+    private readonly statusBar: ReplStatusBar;
 
     constructor() {
         this.statusBar = new ReplStatusBar();
