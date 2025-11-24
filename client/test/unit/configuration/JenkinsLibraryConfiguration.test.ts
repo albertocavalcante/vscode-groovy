@@ -25,7 +25,7 @@ describe('JenkinsLibraryConfiguration', () => {
                 {
                     name: 'my-lib',
                     url: 'https://github.com/org/repo.git',
-                    branch: 'master'
+                    branch: 'main'
                 },
                 {
                     name: 'another-lib',
@@ -43,7 +43,7 @@ describe('JenkinsLibraryConfiguration', () => {
         expect(result[0]).to.deep.equal({
             name: 'my-lib',
             url: 'https://github.com/org/repo.git',
-            branch: 'master'
+            branch: 'main'
         });
         expect(result[1]).to.deep.equal({
             name: 'another-lib',

@@ -48,7 +48,7 @@ describe('SharedLibraryManager', () => {
     describe('initialize', () => {
         it('should download libraries and send notification to LSP on initialization', async () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' }
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' }
             ];
             const classpaths = ['/mock/storage/lib1/src', '/mock/storage/lib1/vars'];
 
@@ -72,7 +72,7 @@ describe('SharedLibraryManager', () => {
 
         it('should handle multiple libraries', async () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' },
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' },
                 { name: 'lib2', url: 'https://github.com/org/lib2.git', branch: 'main' }
             ];
 
@@ -96,7 +96,7 @@ describe('SharedLibraryManager', () => {
 
         it('should handle download errors gracefully', async () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' },
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' },
                 { name: 'lib2', url: 'https://github.com/org/lib2.git', branch: 'main' }
             ];
 
@@ -116,7 +116,7 @@ describe('SharedLibraryManager', () => {
     describe('refresh', () => {
         it('should re-download libraries and update classpaths', async () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' }
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' }
             ];
             const classpaths = ['/mock/storage/lib1/src'];
 

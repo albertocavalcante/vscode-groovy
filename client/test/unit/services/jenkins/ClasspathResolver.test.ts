@@ -32,7 +32,7 @@ describe('ClasspathResolver', () => {
     describe('resolveClasspaths', () => {
         it('should return paths for src and vars when both exist', () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' }
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' }
             ];
 
             mockFs.existsSync.callsFake((path: string) => {
@@ -48,7 +48,7 @@ describe('ClasspathResolver', () => {
 
         it('should only return src path when vars folder does not exist', () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' }
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' }
             ];
 
             mockFs.existsSync.callsFake((path: string) => {
@@ -63,7 +63,7 @@ describe('ClasspathResolver', () => {
 
         it('should only return vars path when src folder does not exist', () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' }
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' }
             ];
 
             mockFs.existsSync.callsFake((path: string) => {
@@ -78,7 +78,7 @@ describe('ClasspathResolver', () => {
 
         it('should return empty array when library folder does not exist', () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' }
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' }
             ];
 
             mockFs.existsSync.returns(false);
@@ -90,7 +90,7 @@ describe('ClasspathResolver', () => {
 
         it('should handle multiple libraries correctly', () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' },
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' },
                 { name: 'lib2', url: 'https://github.com/org/lib2.git', branch: 'main' }
             ];
 
@@ -117,7 +117,7 @@ describe('ClasspathResolver', () => {
 
         it('should return absolute paths', () => {
             const libraries = [
-                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'master' }
+                { name: 'lib1', url: 'https://github.com/org/lib1.git', branch: 'main' }
             ];
 
             mockFs.existsSync.returns(true);

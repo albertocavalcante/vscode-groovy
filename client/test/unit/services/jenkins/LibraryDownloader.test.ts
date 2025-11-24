@@ -45,7 +45,7 @@ describe('LibraryDownloader', () => {
             const library = {
                 name: 'my-lib',
                 url: 'https://github.com/org/repo.git',
-                branch: 'master'
+                branch: 'main'
             };
 
             mockFs.existsSync.returns(false);
@@ -58,14 +58,14 @@ describe('LibraryDownloader', () => {
             expect(git.clone.calledOnce).to.be.true;
             expect(git.clone.firstCall.args[0]).to.equal(library.url);
             expect(git.clone.firstCall.args[1]).to.include('my-lib');
-            expect(git.clone.firstCall.args[2]).to.deep.include({ '--branch': 'master' });
+            expect(git.clone.firstCall.args[2]).to.deep.include({ '--branch': 'main' });
         });
 
         it('should pull changes if folder exists and on correct branch', async () => {
             const library = {
                 name: 'existing-lib',
                 url: 'https://github.com/org/repo.git',
-                branch: 'master'
+                branch: 'main'
             };
 
             mockFs.existsSync.returns(true);
@@ -103,7 +103,7 @@ describe('LibraryDownloader', () => {
             const library = {
                 name: 'error-lib',
                 url: 'https://github.com/org/invalid.git',
-                branch: 'master'
+                branch: 'main'
             };
 
             mockFs.existsSync.returns(false);
@@ -125,7 +125,7 @@ describe('LibraryDownloader', () => {
             const library = {
                 name: 'pull-error-lib',
                 url: 'https://github.com/org/repo.git',
-                branch: 'master'
+                branch: 'main'
             };
 
             mockFs.existsSync.returns(true);
