@@ -37,16 +37,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          file="scripts/prepare-server.js"
-          tag=$(node "$file" --print-release-tag 2>/dev/null || echo "unknown")
-          if [[ -f "$file" ]]; then
-            hash=$(node -e "const { createHash } = require('crypto'); const fs = require('fs'); const file = process.argv[1]; const data = fs.readFileSync(file); process.stdout.write(createHash('sha256').update(data).digest('hex'));" "$file")
-          else
-            echo "Hash source ${file} not found, using fallback key" >&2
-            hash="missing"
-          fi
-          echo "tag=${tag:-unknown}" >> "$GITHUB_OUTPUT"
-          echo "hash=${hash:-missing}" >> "$GITHUB_OUTPUT"
+          node scripts/compute-groovy-cache-key.js >> "$GITHUB_OUTPUT"
 
       - name: Cache Groovy LSP
         uses: actions/cache@v4

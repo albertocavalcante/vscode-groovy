@@ -379,3 +379,7 @@ if (require.main === module) {
         });
     }
 }
+
+module.exports = {
+    getLatestReleaseInfo
+};
