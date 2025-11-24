@@ -49,6 +49,10 @@ export class ReplService implements vscode.Disposable {
     }
 
     private clear(): void {
+        if (!this.terminal) {
+            vscode.window.showInformationMessage('REPL is not running.');
+            return;
+        }
         // We can use a special sequence to clear the terminal
         this.writeEmitter.fire('\x1b[2J\x1b[3J\x1b[;H');
     }
