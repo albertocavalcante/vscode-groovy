@@ -193,8 +193,8 @@
               },
               "branch": {
                 "type": "string",
-                "description": "Git branch to use (defaults to 'master')",
-                "default": "master"
+                "description": "Git branch to use (defaults to 'main')",
+                "default": "main"
               }
             },
             "required": ["name", "url"]

@@ -64,7 +64,7 @@ describe('JenkinsLibraryConfiguration', () => {
         expect(result).to.be.an('array').that.is.empty;
     });
 
-    it('should use default branch "master" when branch is not specified', () => {
+    it('should use default branch "main" when branch is not specified', () => {
         const mockConfig = {
             get: sinon.stub().withArgs('jenkins.sharedLibraries').returns([
                 {
@@ -79,6 +79,6 @@ describe('JenkinsLibraryConfiguration', () => {
         const result = getJenkinsLibrariesConfiguration();
 
         expect(result).to.have.lengthOf(1);
-        expect(result[0].branch).to.equal('master');
+        expect(result[0].branch).to.equal('main');
     });
 });
