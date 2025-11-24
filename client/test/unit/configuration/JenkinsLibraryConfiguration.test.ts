@@ -81,4 +81,61 @@ describe('JenkinsLibraryConfiguration', () => {
         expect(result).to.have.lengthOf(1);
         expect(result[0].branch).to.equal('main');
     });
+
+    it('should filter out invalid entries with empty name or url', () => {
+        const mockConfig = {
+            get: sinon.stub().withArgs('jenkins.sharedLibraries').returns([
+                {
+                    name: 'valid-lib',
+                    url: 'https://github.com/org/repo.git',
+                    branch: 'main'
+                },
+                {
+                    name: '',
+                    url: 'https://github.com/org/repo.git',
+                    branch: 'main'
+                },
+                {
+                    name: 'another-lib',
+                    url: '',
+                    branch: 'main'
+                },
+                {
+                    name: '   ',
+                    url: 'https://github.com/org/repo.git',
+                    branch: 'main'
+                }
+            ])
+        };
+
+        vscode.workspace.getConfiguration.returns(mockConfig);
+
+        const result = getJenkinsLibrariesConfiguration();
+
+        expect(result).to.have.lengthOf(1);
+        expect(result[0].name).to.equal('valid-lib');
+    });
+
+    it('should trim whitespace from name, url, and branch', () => {
+        const mockConfig = {
+            get: sinon.stub().withArgs('jenkins.sharedLibraries').returns([
+                {
+                    name: '  my-lib  ',
+                    url: '  https://github.com/org/repo.git  ',
+                    branch: '  develop  '
+                }
+            ])
+        };
+
+        vscode.workspace.getConfiguration.returns(mockConfig);
+
+        const result = getJenkinsLibrariesConfiguration();
+
+        expect(result).to.have.lengthOf(1);
+        expect(result[0]).to.deep.equal({
+            name: 'my-lib',
+            url: 'https://github.com/org/repo.git',
+            branch: 'develop'
+        });
+    });
 });

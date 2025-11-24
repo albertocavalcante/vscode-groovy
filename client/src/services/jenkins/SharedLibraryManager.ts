@@ -25,13 +25,11 @@ export class SharedLibraryManager {
     async initialize(): Promise<void> {
         const libraries = getJenkinsLibrariesConfiguration();
 
-        if (libraries.length === 0) {
-            // Send empty classpath to clear any previously set libraries
-            await this.updateClasspaths([]);
-            return;
+        if (libraries.length > 0) {
+            await this.downloadLibraries(libraries);
         }
 
-        await this.downloadLibraries(libraries);
+        // Always update classpaths (sends empty array if no libraries)
         await this.updateClasspaths(libraries);
     }
 

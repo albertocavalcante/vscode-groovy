@@ -20,9 +20,11 @@ export function getJenkinsLibrariesConfiguration(): JenkinsLibraryConfig[] {
         return [];
     }
 
-    return libraries.map(lib => ({
-        name: lib.name || '',
-        url: lib.url || '',
-        branch: lib.branch || 'main'
-    }));
+    return libraries
+        .filter(lib => lib.name && lib.name.trim() !== '' && lib.url && lib.url.trim() !== '')
+        .map(lib => ({
+            name: lib.name!.trim(),
+            url: lib.url!.trim(),
+            branch: lib.branch?.trim() || 'main'
+        }));
 }

@@ -47,16 +47,25 @@ export async function activate(context: ExtensionContext) {
         // Initialize Jenkins Shared Library Manager
         const client = getClient();
         if (client) {
-            const globalStoragePath = context.globalStorageUri.fsPath;
-            const libraryManager = new SharedLibraryManager(globalStoragePath, client);
-            
-            // Register refresh callback for configuration changes
-            registerSharedLibraryRefreshCallback(async () => {
-                await libraryManager.refresh();
-            });
+            try {
+                const globalStoragePath = context.globalStorageUri.fsPath;
+                const libraryManager = new SharedLibraryManager(globalStoragePath, client);
+                
+                // Register refresh callback for configuration changes
+                registerSharedLibraryRefreshCallback(async () => {
+                    try {
+                        await libraryManager.refresh();
+                    } catch (error) {
+                        console.error('Error refreshing Jenkins shared libraries:', error);
+                    }
+                });
 
-            // Initialize on startup
-            await libraryManager.initialize();
+                // Initialize on startup
+                await libraryManager.initialize();
+            } catch (error) {
+                console.error('Error initializing Jenkins Shared Library Manager:', error);
+                // Don't fail activation if shared libraries fail to initialize
+            }
         }
 
         console.log('Groovy Language Extension activated successfully');
