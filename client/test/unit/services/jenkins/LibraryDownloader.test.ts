@@ -22,7 +22,10 @@ describe('LibraryDownloader', () => {
         // Mock fs
         mockFs = {
             existsSync: sinon.stub(),
-            mkdirSync: sinon.stub()
+            mkdirSync: sinon.stub(),
+            promises: {
+                access: sinon.stub()
+            }
         };
 
         // Load LibraryDownloader with mocks
@@ -48,13 +51,13 @@ describe('LibraryDownloader', () => {
                 branch: 'main'
             };
 
-            mockFs.existsSync.returns(false);
+            mockFs.promises.access.rejects(new Error('ENOENT'));
             const git = mockSimpleGit();
 
             await downloader.download(library);
 
-            expect(mockFs.existsSync.calledOnce).to.be.true;
-            expect(mockFs.existsSync.firstCall.args[0]).to.include('my-lib');
+            expect(mockFs.promises.access.calledOnce).to.be.true;
+            expect(mockFs.promises.access.firstCall.args[0]).to.include('my-lib');
             expect(git.clone.calledOnce).to.be.true;
             expect(git.clone.firstCall.args[0]).to.equal(library.url);
             expect(git.clone.firstCall.args[1]).to.include('my-lib');
@@ -68,12 +71,12 @@ describe('LibraryDownloader', () => {
                 branch: 'main'
             };
 
-            mockFs.existsSync.returns(true);
+            mockFs.promises.access.resolves();
             const git = mockSimpleGit();
 
             await downloader.download(library);
 
-            expect(mockFs.existsSync.calledOnce).to.be.true;
+            expect(mockFs.promises.access.calledOnce).to.be.true;
             expect(git.pull.calledOnce).to.be.true;
         });
 
@@ -84,7 +87,7 @@ describe('LibraryDownloader', () => {
                 branch: 'develop'
             };
 
-            mockFs.existsSync.returns(true);
+            mockFs.promises.access.resolves();
             const git = {
                 branch: sinon.stub().resolves({ current: 'master' }),
                 checkout: sinon.stub().resolves(),
@@ -106,7 +109,7 @@ describe('LibraryDownloader', () => {
                 branch: 'main'
             };
 
-            mockFs.existsSync.returns(false);
+            mockFs.promises.access.rejects(new Error('ENOENT'));
             const git = {
                 clone: sinon.stub().rejects(new Error('Clone failed'))
             };
@@ -128,7 +131,7 @@ describe('LibraryDownloader', () => {
                 branch: 'main'
             };
 
-            mockFs.existsSync.returns(true);
+            mockFs.promises.access.resolves();
             const git = {
                 branch: sinon.stub().resolves({ current: 'main' }),
                 pull: sinon.stub().rejects(new Error('Pull failed'))

@@ -19,8 +19,9 @@ export class LibraryDownloader {
     async download(library: JenkinsLibraryConfig): Promise<void> {
         const libraryPath = path.join(this.globalStoragePath, library.name);
 
+        const exists = await fs.promises.access(libraryPath).then(() => true).catch(() => false);
         try {
-            if (!fs.existsSync(libraryPath)) {
+            if (!exists) {
                 // Clone the repository if it doesn't exist
                 await this.cloneRepository(library, libraryPath);
             } else {
@@ -28,13 +29,9 @@ export class LibraryDownloader {
                 await this.updateRepository(library, libraryPath);
             }
         } catch (error) {
+            const action = exists ? 'update' : 'download';
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            
-            if (!fs.existsSync(libraryPath)) {
-                throw new Error(`Failed to download library ${library.name}: ${errorMessage}`);
-            } else {
-                throw new Error(`Failed to update library ${library.name}: ${errorMessage}`);
-            }
+            throw new Error(`Failed to ${action} library ${library.name}: ${errorMessage}`);
         }
     }
 

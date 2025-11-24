@@ -44,15 +44,13 @@ export class SharedLibraryManager {
      * Downloads all configured libraries
      */
     private async downloadLibraries(libraries: ReturnType<typeof getJenkinsLibrariesConfiguration>): Promise<void> {
-        for (const library of libraries) {
-            try {
-                await this.downloader.download(library);
-            } catch (error) {
+        const downloadPromises = libraries.map(library =>
+            this.downloader.download(library).catch(error => {
                 const message = error instanceof Error ? error.message : 'Unknown error';
                 console.error(`Failed to download library ${library.name}: ${message}`);
-                // Continue with other libraries
-            }
-        }
+            })
+        );
+        await Promise.all(downloadPromises);
     }
 
     /**
