@@ -24,7 +24,7 @@ This repository includes `.github/workflows/copilot-setup-steps.yml` to pre-prov
 ## Runners and networking
 
 - Copilot coding agent only supports Ubuntu x64 runners.
-- For heavier workloads, change `runs-on` to a larger runner label. If you switch to ARC self-hosted runners, disable the Copilot repository firewall per GitHub guidance and ensure outbound access to:
+- For heavier workloads, change `runs-on` to a larger runner label. If you switch to ARC self-hosted runners, disable the Copilot repository firewall per [GitHub guidance](https://docs.github.com/en/copilot/customizing-copilot/customizing-or-disabling-the-firewall-for-copilot-coding-agent) and ensure outbound access to:
   - `api.githubcopilot.com`
   - `uploads.github.com`
   - `user-images.githubusercontent.com`
