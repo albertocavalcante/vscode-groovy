@@ -361,10 +361,10 @@ async function prepareServer() {
 
 // Run the script
 if (require.main === module) {
-    const args = process.argv.slice(2);
+    const args = new Set(process.argv.slice(2));
 
     async function run() {
-        if (args.includes('--print-release-tag')) {
+        if (args.has('--print-release-tag')) {
             try {
                 const info = await getLatestReleaseInfo();
                 process.stdout.write(info?.tag_name || 'unknown');
