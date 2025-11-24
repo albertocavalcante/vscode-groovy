@@ -13,12 +13,11 @@ export function registerGradleFeatures(context: vscode.ExtensionContext) {
     const gradleService = new GradleService(client);
     const taskProvider = new GradleTaskProvider(gradleService);
 
-    // Register the task provider
     const taskProviderDisposable = vscode.tasks.registerTaskProvider('gradle', taskProvider);
-    context.subscriptions.push(taskProviderDisposable);
 
-    // Register commands
+    // Register commands and providers
     context.subscriptions.push(
+        taskProviderDisposable,
         vscode.commands.registerCommand('groovy.gradle.build', () => runGradleTask('build')),
         vscode.commands.registerCommand('groovy.gradle.test', () => runGradleTask('test')),
         vscode.commands.registerCommand('groovy.gradle.clean', () => runGradleTask('clean')),
