@@ -13,31 +13,13 @@ const https = require('node:https');
 const SERVER_DIR = path.join(__dirname, '..', 'server');
 const CANONICAL_JAR_NAME = 'groovy-lsp.jar';
 const JAR_PATH = path.join(SERVER_DIR, CANONICAL_JAR_NAME);
+const VERSION_FILE = path.join(SERVER_DIR, '.groovy-lsp-version');
 
-// GitHub release URLs
-const GITHUB_RELEASE_API = 'https://api.github.com/repos/albertocavalcante/groovy-lsp/releases/latest';
-
-/**
- * FIXME: Remove platform-specific logic once groovy-lsp publishes universal JAR
- * Currently we need to select platform-specific JARs because groovy-lsp publishes
- * separate JARs for each platform. This should be simplified to a single universal
- * JAR in the future for easier distribution and maintenance.
- * TODO: Create issue in groovy-lsp to publish universal JAR
- */
-
-/**
- * Gets platform-specific JAR suffix for current OS
- * @returns {string} Platform suffix (e.g., 'linux-amd64', 'darwin-amd64', 'windows-amd64')
- */
-function getPlatformJarSuffix() {
-    const platformMap = {
-        'linux': 'linux-amd64',
-        'darwin': 'darwin-amd64',
-        'win32': 'windows-amd64'
-    };
-
-    return platformMap[process.platform] || 'linux-amd64'; // Default to linux for unknown platforms
-}
+// Pinned Groovy LSP release
+const PINNED_RELEASE_TAG = 'v0.2.0';
+const PINNED_JAR_ASSET = 'groovy-lsp-0.2.0-linux-amd64.jar';
+// v0.2.0 ships a single universal JAR; reuse the linux-amd64 artifact for all platforms
+const PINNED_DOWNLOAD_URL = `https://github.com/albertocavalcante/groovy-lsp/releases/download/${PINNED_RELEASE_TAG}/${PINNED_JAR_ASSET}`;
 
 /**
  * Finds local Groovy LSP JAR file in common development locations
@@ -90,57 +72,6 @@ function findLocalGroovyLspJar() {
 }
 
 /**
- * Fetches JSON data from a URL
- */
-function fetchJson(url) {
-    return new Promise((resolve, reject) => {
-        const headers = {
-            'User-Agent': 'vscode-groovy-extension'
-        };
-
-        // Add GitHub authentication if token is available (for CI rate limiting)
-        if (process.env.GITHUB_TOKEN) {
-            headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
-        }
-
-        const request = https.get(url, {
-            headers: headers
-        }, (response) => {
-            let data = '';
-
-            response.on('data', (chunk) => {
-                data += chunk;
-            });
-
-            response.on('end', () => {
-                try {
-                    const json = JSON.parse(data);
-
-                    // Check for HTTP error status codes
-                    if (response.statusCode >= 400) {
-                        reject(new Error(`HTTP ${response.statusCode}: ${json.message || 'Request failed'}`));
-                        return;
-                    }
-
-                    resolve(json);
-                } catch (error) {
-                    reject(new Error(`Failed to parse JSON: ${error.message}`));
-                }
-            });
-        });
-
-        request.on('error', (error) => {
-            reject(error);
-        });
-
-        request.setTimeout(30000, () => {
-            request.destroy();
-            reject(new Error('Request timeout'));
-        });
-    });
-}
-
-/**
  * Downloads a file from URL to local path
  */
 function downloadFile(url, filePath) {
@@ -190,84 +121,32 @@ function downloadFile(url, filePath) {
 }
 
 /**
- * Gets the latest or most recent release info, handling prereleases
- * @returns {Promise<Object>} Release information object
+ * Reads version marker stored alongside the server JAR
  */
-async function getLatestReleaseInfo() {
+function readInstalledVersion() {
     try {
-        console.log('Fetching latest release info from GitHub...');
-        // Try latest release first (non-prereleases only)
-        return await fetchJson(GITHUB_RELEASE_API);
-    } catch (error) {
-        if (error.message.includes('404') || error.message.includes('Not Found')) {
-            console.log('No "latest" release found, checking all releases...');
-            // Fallback to first available release (including prereleases)
-            const releasesUrl = GITHUB_RELEASE_API.replace('/latest', '');
-            const releases = await fetchJson(releasesUrl);
-
-            if (releases && releases.length > 0) {
-                console.log(`Using most recent release: ${releases[0].tag_name}`);
-                return releases[0];
-            }
-        }
-        throw error;
+        const content = fs.readFileSync(VERSION_FILE, 'utf8').trim();
+        return content || null;
+    } catch {
+        return null;
     }
 }
 
 /**
- * Selects the appropriate JAR asset for the current platform
- * @param {Array} assets Array of release assets
- * @returns {Object|null} Selected JAR asset or null if not found
+ * Writes version marker for the installed JAR
  */
-function selectPlatformJar(assets) {
-    if (!assets || assets.length === 0) return null;
-
-    const platformSuffix = getPlatformJarSuffix();
-
-    // TODO: Simplify to single JAR download once groovy-lsp publishes universal JAR
-    // First, try to find platform-specific JAR
-    let jarAsset = assets.find(a =>
-        a.name.endsWith('.jar') &&
-        a.name.includes(platformSuffix)
-    );
-
-    if (!jarAsset) {
-        console.log(`Platform-specific JAR (${platformSuffix}) not found, trying any JAR...`);
-        // Fallback to any JAR file
-        jarAsset = assets.find(a => a.name.endsWith('.jar'));
-    }
-
-    return jarAsset;
+function writeInstalledVersion(versionTag) {
+    fs.writeFileSync(VERSION_FILE, `${versionTag}\n`, 'utf8');
 }
 
 /**
- * Downloads the latest release JAR from GitHub
+ * Downloads the pinned release JAR from GitHub
  */
-async function downloadLatestRelease() {
-    try {
-        const releaseInfo = await getLatestReleaseInfo();
-
-        if (!releaseInfo || !releaseInfo.tag_name) {
-            throw new Error('Could not determine latest release');
-        }
-
-        if (!releaseInfo.assets || releaseInfo.assets.length === 0) {
-            throw new Error('No assets found in release');
-        }
-
-        const jarAsset = selectPlatformJar(releaseInfo.assets);
-
-        if (!jarAsset) {
-            throw new Error('No JAR file found in release');
-        }
-
-        console.log(`Downloading ${jarAsset.name} from release ${releaseInfo.tag_name}...`);
-        await downloadFile(jarAsset.browser_download_url, JAR_PATH);
-        console.log(`✓ Downloaded and saved as ${CANONICAL_JAR_NAME}`);
-
-    } catch (error) {
-        throw new Error(`Failed to download from GitHub releases: ${error.message}`);
-    }
+async function downloadPinnedRelease() {
+    console.log(`Downloading Groovy LSP ${PINNED_RELEASE_TAG} (${PINNED_JAR_ASSET})...`);
+    await downloadFile(PINNED_DOWNLOAD_URL, JAR_PATH);
+    writeInstalledVersion(PINNED_RELEASE_TAG);
+    console.log(`✓ Downloaded and saved as ${CANONICAL_JAR_NAME}`);
 }
 
 /**
@@ -288,6 +167,7 @@ async function prepareServer() {
 
         const forceDownload = process.env.FORCE_DOWNLOAD === 'true';
         const preferLocal = process.env.PREFER_LOCAL === 'true';
+        const installedVersion = readInstalledVersion();
 
         // Try local build first if preferred
         if (preferLocal) {
@@ -310,6 +190,7 @@ async function prepareServer() {
                 if (shouldCopy) {
                     console.log(`Copying from local build: ${localJarPath}`);
                     fs.copyFileSync(localJarPath, JAR_PATH);
+                    writeInstalledVersion('local');
                     console.log(`✓ Copied to ${CANONICAL_JAR_NAME}`);
                 }
                 return;
@@ -318,15 +199,17 @@ async function prepareServer() {
             }
         }
 
-        // Check if JAR already exists (unless force download)
-        if (!forceDownload && fs.existsSync(JAR_PATH)) {
-            console.log(`✓ Using existing ${CANONICAL_JAR_NAME}`);
+        const isPinnedJarInstalled = fs.existsSync(JAR_PATH) && installedVersion === PINNED_RELEASE_TAG;
+
+        // Check if pinned JAR already exists (unless force download)
+        if (!forceDownload && isPinnedJarInstalled) {
+            console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${PINNED_RELEASE_TAG}`);
             return;
         }
 
         // Download from GitHub releases
-        console.log('Downloading from GitHub releases...');
-        await downloadLatestRelease();
+        console.log('Downloading pinned Groovy LSP release...');
+        await downloadPinnedRelease();
 
     } catch (error) {
         console.error('❌ Error preparing Groovy Language Server:');
@@ -336,20 +219,22 @@ async function prepareServer() {
         if (error.message.includes('ENOTFOUND') || error.message.includes('timeout')) {
             console.error('');
             console.error('Network error. Please check your internet connection or try again later.');
-        } else if (error.message.includes('No JAR file found')) {
-            console.error('');
-            console.error('No JAR files found in the latest release.');
-            console.error('Please check: https://github.com/albertocavalcante/groovy-lsp/releases');
         }
 
+        console.error('');
+        console.error(`Pinned release: ${PINNED_RELEASE_TAG}`);
+        console.error(`Expected asset: ${PINNED_JAR_ASSET}`);
+        console.error(`Release page: https://github.com/albertocavalcante/groovy-lsp/releases/tag/${PINNED_RELEASE_TAG}`);
         console.error('');
         console.error('You can also manually copy a JAR file to:');
         console.error(`  ${JAR_PATH}`);
 
-        // In CI environments or if specifically requested, don't fail the build
-        // This allows npm install to succeed even if the server JAR cannot be downloaded
-        // GitHub Actions sets both CI=true and GITHUB_ACTIONS=true
-        if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.IGNORE_DOWNLOAD_FAILURE === 'true') {
+        const requireBundle = process.env.REQUIRE_SERVER_BUNDLE === 'true';
+        const ignoreFailure = process.env.IGNORE_DOWNLOAD_FAILURE === 'true';
+        const allowCIFallback = !requireBundle && (process.env.CI || process.env.GITHUB_ACTIONS);
+
+        // Allow CI runs (except when REQUIRE_SERVER_BUNDLE=true) to continue without failing installation
+        if (!requireBundle && (ignoreFailure || allowCIFallback)) {
             console.warn('\n⚠️ WARNING: Server JAR download failed, but ignoring failure (CI/GITHUB_ACTIONS/IGNORE_DOWNLOAD_FAILURE).');
             console.warn('The extension will NOT work without the server JAR unless a custom path is configured.');
             process.exit(0);
@@ -365,13 +250,7 @@ if (require.main === module) {
 
     async function run() {
         if (args.has('--print-release-tag')) {
-            try {
-                const info = await getLatestReleaseInfo();
-                process.stdout.write(info?.tag_name || 'unknown');
-            } catch (error) {
-                console.error(`Failed to fetch latest release tag: ${error.message}`);
-                process.stdout.write('unknown');
-            }
+            process.stdout.write(PINNED_RELEASE_TAG);
             return;
         }
 
@@ -387,5 +266,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-    getLatestReleaseInfo
+    PINNED_RELEASE_TAG
 };
