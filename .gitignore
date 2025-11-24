@@ -13,6 +13,7 @@ node_modules/
 # TypeScript
 **/*.js.map
 **/*.d.ts
+*.tsbuildinfo
 
 # VSCode
 .vscode-test/
