@@ -6,9 +6,9 @@
  * 3. Download from GitHub releases
  */
 
-const fs = require('fs');
-const path = require('path');
-const https = require('https');
+const fs = require('node:fs');
+const path = require('node:path');
+const https = require('node:https');
 
 const SERVER_DIR = path.join(__dirname, '..', 'server');
 const CANONICAL_JAR_NAME = 'groovy-lsp.jar';

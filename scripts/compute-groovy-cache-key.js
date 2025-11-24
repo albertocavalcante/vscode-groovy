@@ -5,9 +5,9 @@
  *   hash=<sha256 of prepare-server.js or missing>
  */
 
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const { getLatestReleaseInfo } = require('./prepare-server');
 
