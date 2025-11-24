@@ -363,7 +363,7 @@ async function prepareServer() {
 if (require.main === module) {
     const args = process.argv.slice(2);
 
-    (async () => {
+    async function run() {
         if (args.includes('--print-release-tag')) {
             try {
                 const info = await getLatestReleaseInfo();
@@ -378,7 +378,9 @@ if (require.main === module) {
         console.log('Preparing Groovy Language Server...');
         await prepareServer();
         console.log('✅ Server preparation complete!');
-    })();
+    }
+
+    run();
 }
 
 module.exports = {
