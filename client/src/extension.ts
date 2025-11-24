@@ -4,13 +4,14 @@
  */
 
 import { ExtensionContext } from 'vscode';
-import { initializeClient, startClient, stopClient } from './server/client';
+import { initializeClient, startClient, stopClient, getClient } from './server/client';
 import { registerStatusBarItem } from './ui/statusBar';
 import { registerCommands } from './commands';
-import { setupConfigurationWatcher } from './configuration/watcher';
+import { setupConfigurationWatcher, registerSharedLibraryRefreshCallback } from './configuration/watcher';
 import { registerFormatting } from './features/formatting/formatter';
 import { replService } from './features/repl';
 import { registerGradleFeatures } from './features/gradle';
+import { SharedLibraryManager } from './services/jenkins/SharedLibraryManager';
 
 /**
  * Activates the extension
@@ -42,6 +43,21 @@ export async function activate(context: ExtensionContext) {
         // Register features that depend on the client
         registerFormatting(context);
         registerGradleFeatures(context);
+
+        // Initialize Jenkins Shared Library Manager
+        const client = getClient();
+        if (client) {
+            const globalStoragePath = context.globalStorageUri.fsPath;
+            const libraryManager = new SharedLibraryManager(globalStoragePath, client);
+            
+            // Register refresh callback for configuration changes
+            registerSharedLibraryRefreshCallback(async () => {
+                await libraryManager.refresh();
+            });
+
+            // Initialize on startup
+            await libraryManager.initialize();
+        }
 
         console.log('Groovy Language Extension activated successfully');
 
