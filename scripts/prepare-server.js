@@ -363,21 +363,22 @@ async function prepareServer() {
 if (require.main === module) {
     const args = process.argv.slice(2);
 
-    if (args.includes('--print-release-tag')) {
-        getLatestReleaseInfo()
-            .then(info => {
+    (async () => {
+        if (args.includes('--print-release-tag')) {
+            try {
+                const info = await getLatestReleaseInfo();
                 process.stdout.write(info?.tag_name || 'unknown');
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error(`Failed to fetch latest release tag: ${error.message}`);
                 process.stdout.write('unknown');
-            });
-    } else {
+            }
+            return;
+        }
+
         console.log('Preparing Groovy Language Server...');
-        prepareServer().then(() => {
-            console.log('✅ Server preparation complete!');
-        });
-    }
+        await prepareServer();
+        console.log('✅ Server preparation complete!');
+    })();
 }
 
 module.exports = {

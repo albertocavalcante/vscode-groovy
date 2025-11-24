@@ -44,8 +44,12 @@ async function main() {
     process.stdout.write(`hash=${hash}\n`);
 }
 
-main().catch(error => {
-    console.error(`cache-key computation failed: ${error.message}`);
-    process.stdout.write('tag=unknown\nhash=missing\n');
-    process.exit(0); // do not fail workflow; fallback values suffice
-});
+(async () => {
+    try {
+        await main();
+    } catch (error) {
+        console.error(`cache-key computation failed: ${error.message}`);
+        process.stdout.write('tag=unknown\nhash=missing\n');
+        process.exit(0); // do not fail workflow; fallback values suffice
+    }
+})();
