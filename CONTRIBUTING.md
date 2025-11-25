@@ -252,4 +252,4 @@ Releases are automated through Release Please:
 4. Merge the release PR
 5. Extension is automatically published to VS Code Marketplace
 
-Thank you for contributing to making Groovy development in VS Code better! 🚀
+Thank you for contributing to making Groovy development in VS Code better!
