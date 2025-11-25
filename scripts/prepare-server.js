@@ -127,7 +127,10 @@ function readInstalledVersion() {
     try {
         const content = fs.readFileSync(VERSION_FILE, 'utf8').trim();
         return content || null;
-    } catch {
+    } catch (error) {
+        if (error.code !== 'ENOENT') {
+            console.warn(`Warning: Could not read version file at ${VERSION_FILE}: ${error.message}`);
+        }
         return null;
     }
 }
@@ -231,10 +234,10 @@ async function prepareServer() {
 
         const requireBundle = process.env.REQUIRE_SERVER_BUNDLE === 'true';
         const ignoreFailure = process.env.IGNORE_DOWNLOAD_FAILURE === 'true';
-        const allowCIFallback = !requireBundle && (process.env.CI || process.env.GITHUB_ACTIONS);
+        const isCI = !!(process.env.CI || process.env.GITHUB_ACTIONS);
 
         // Allow CI runs (except when REQUIRE_SERVER_BUNDLE=true) to continue without failing installation
-        if (!requireBundle && (ignoreFailure || allowCIFallback)) {
+        if (!requireBundle && (ignoreFailure || isCI)) {
             console.warn('\n⚠️ WARNING: Server JAR download failed, but ignoring failure (CI/GITHUB_ACTIONS/IGNORE_DOWNLOAD_FAILURE).');
             console.warn('The extension will NOT work without the server JAR unless a custom path is configured.');
             process.exit(0);
