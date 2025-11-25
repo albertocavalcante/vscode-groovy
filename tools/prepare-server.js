@@ -28,6 +28,13 @@ const GITHUB_RELEASE_API = `${GITHUB_API_BASE}/releases/latest`;
 const GITHUB_RELEASES_API = `${GITHUB_API_BASE}/releases?per_page=30`;
 const GITHUB_RELEASE_TAG_API = `${GITHUB_API_BASE}/releases/tags`;
 
+function expectValue(argv, index, flag) {
+    if (index >= argv.length || argv[index].startsWith('--')) {
+        throw new Error(`Missing value for ${flag} option.`);
+    }
+    return argv[index];
+}
+
 function parseArgs(argv = []) {
     const parsed = {
         printReleaseTag: false,
@@ -55,15 +62,15 @@ function parseArgs(argv = []) {
             parsed.latest = true;
             break;
         case '--tag':
-            parsed.tag = argv[i + 1];
+            parsed.tag = expectValue(argv, i + 1, '--tag');
             i += 1;
             break;
         case '--channel':
-            parsed.channel = argv[i + 1];
+            parsed.channel = expectValue(argv, i + 1, '--channel');
             i += 1;
             break;
         case '--local':
-            parsed.local = argv[i + 1];
+            parsed.local = expectValue(argv, i + 1, '--local');
             i += 1;
             break;
         case '--force-download':
@@ -178,20 +185,30 @@ function deriveSelection(cliOptions) {
 }
 
 async function resolveTarget(selection) {
-    if (selection.type === 'tag') {
-        const info = await getReleaseByTag(selection.tag);
+    const buildTargetFromReleaseInfo = async (info, { noJarError, logMessage }) => {
+        if (!info) {
+            throw new Error('Release information not found.');
+        }
         const jarAsset = selectJarAsset(info.assets);
         if (!jarAsset) {
-            throw new Error(`No JAR file found in release ${selection.tag}`);
+            throw new Error(noJarError(info));
         }
         const checksum = await fetchChecksumForAsset(info.assets, jarAsset.name);
-        console.log(`Selected Groovy LSP release tag: ${info.tag_name}`);
+        console.log(`${logMessage}: ${info.tag_name}`);
         return {
             tag: info.tag_name,
             assetName: jarAsset.name,
             downloadUrl: jarAsset.browser_download_url,
             checksum
         };
+    };
+
+    if (selection.type === 'tag') {
+        const info = await getReleaseByTag(selection.tag);
+        return await buildTargetFromReleaseInfo(info, {
+            noJarError: i => `No JAR file found in release ${i.tag_name}`,
+            logMessage: 'Selected Groovy LSP release tag'
+        });
     }
 
     if (selection.type === 'nightly') {
@@ -199,34 +216,18 @@ async function resolveTarget(selection) {
         if (!info) {
             throw new Error('No nightly Groovy LSP release found');
         }
-        const jarAsset = selectJarAsset(info.assets);
-        if (!jarAsset) {
-            throw new Error(`No JAR file found in nightly release ${info.tag_name}`);
-        }
-        const checksum = await fetchChecksumForAsset(info.assets, jarAsset.name);
-        console.log(`Selected latest nightly Groovy LSP: ${info.tag_name}`);
-        return {
-            tag: info.tag_name,
-            assetName: jarAsset.name,
-            downloadUrl: jarAsset.browser_download_url,
-            checksum
-        };
+        return await buildTargetFromReleaseInfo(info, {
+            noJarError: i => `No JAR file found in nightly release ${i.tag_name}`,
+            logMessage: 'Selected latest nightly Groovy LSP'
+        });
     }
 
     if (selection.type === 'latest') {
         const info = await getLatestReleaseInfo();
-        const jarAsset = selectJarAsset(info.assets);
-        if (!jarAsset) {
-            throw new Error('No JAR file found in the latest release');
-        }
-        const checksum = await fetchChecksumForAsset(info.assets, jarAsset.name);
-        console.log(`Selected latest Groovy LSP release: ${info.tag_name}`);
-        return {
-            tag: info.tag_name,
-            assetName: jarAsset.name,
-            downloadUrl: jarAsset.browser_download_url,
-            checksum
-        };
+        return await buildTargetFromReleaseInfo(info, {
+            noJarError: () => 'No JAR file found in the latest release',
+            logMessage: 'Selected latest Groovy LSP release'
+        });
     }
 
     // Pinned release fallback
@@ -378,7 +379,7 @@ async function prepareServer(runtimeOptions = {}) {
 
         const forceDownload = runtimeOptions.forceDownload ?? (cliOptions.forceDownload || process.env.FORCE_DOWNLOAD === 'true');
         const preferLocal = runtimeOptions.preferLocal ?? (cliOptions.preferLocal || process.env.PREFER_LOCAL === 'true');
-        const explicitLocalJar = runtimeOptions.local || cliOptions.local || process.env.GROOVY_LSP_LOCAL_JAR || null;
+        const explicitLocalJar = runtimeOptions.local ?? cliOptions.local ?? process.env.GROOVY_LSP_LOCAL_JAR ?? null;
         const installedVersion = readInstalledVersion();
 
         // Hard local override (highest precedence)
@@ -624,7 +625,7 @@ async function getLatestNightlyRelease() {
     if (!Array.isArray(releases) || releases.length === 0) return null;
 
     const candidates = releases
-        .filter(r => !r.draft && (r.prerelease || /nightly/i.test(r.tag_name || '')))
+        .filter(r => !r.draft && /nightly/i.test(r.tag_name || ''))
         .sort((a, b) => new Date(b.published_at || b.created_at) - new Date(a.published_at || a.created_at));
 
     return candidates[0] || null;

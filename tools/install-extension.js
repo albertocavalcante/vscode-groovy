@@ -7,6 +7,13 @@ const { spawnSync } = require('node:child_process');
 const REPO_ROOT = path.join(__dirname, '..');
 const DEFAULT_INSTALLERS = ['code', 'code-insiders', 'agy', 'cursor', 'cursor-insiders'];
 
+function expectValue(argv, index, flag) {
+    if (index >= argv.length || argv[index].startsWith('--')) {
+        throw new Error(`Missing value for ${flag} option.`);
+    }
+    return argv[index];
+}
+
 function parseArgs(argv = []) {
     const parsed = {
         tag: null,
@@ -26,7 +33,7 @@ function parseArgs(argv = []) {
         const arg = argv[i];
         switch (arg) {
         case '--tag':
-            parsed.tag = argv[i + 1];
+            parsed.tag = expectValue(argv, i + 1, '--tag');
             i += 1;
             break;
         case '--nightly':
@@ -36,25 +43,25 @@ function parseArgs(argv = []) {
             parsed.latest = true;
             break;
         case '--channel':
-            parsed.channel = argv[i + 1];
+            parsed.channel = expectValue(argv, i + 1, '--channel');
             i += 1;
             break;
         case '--local':
-            parsed.local = argv[i + 1];
+            parsed.local = expectValue(argv, i + 1, '--local');
             i += 1;
             break;
         case '--force-download':
             parsed.forceDownload = true;
             break;
         case '--installer':
-            parsed.installer = argv[i + 1];
+            parsed.installer = expectValue(argv, i + 1, '--installer');
             i += 1;
             break;
         case '--package-only':
             parsed.packageOnly = true;
             break;
         case '--vsix':
-            parsed.vsix = argv[i + 1];
+            parsed.vsix = expectValue(argv, i + 1, '--vsix');
             i += 1;
             break;
         case '--help':
@@ -150,6 +157,7 @@ function buildEnv(args) {
         env.GROOVY_LSP_LOCAL_JAR = path.resolve(args.local);
         delete env.GROOVY_LSP_TAG;
         delete env.USE_LATEST_GROOVY_LSP;
+        delete env.GROOVY_LSP_CHANNEL;
     }
 
     if (args.forceDownload) {
@@ -208,7 +216,7 @@ function main() {
 
     const installer = findInstaller(args.installer);
     if (!installer) {
-        throw new Error('No supported installer found (tried code, code-insiders, agy, cursor). Provide --installer to override.');
+        throw new Error('No supported installer found (tried code, code-insiders, agy, cursor, cursor-insiders). Provide --installer to override.');
     }
 
     console.log(`Installing extension via ${installer}...`);
