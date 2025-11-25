@@ -61,6 +61,23 @@ vscode-groovy/
 - `npm run package` - Build and package VSIX
 - `npm run prepare-server` - Download/prepare Groovy Language Server
 
+### Updating the embedded Groovy LSP
+
+1. Find the newest release at https://github.com/albertocavalcante/groovy-lsp/releases and note:
+   - `PINNED_RELEASE_TAG` (e.g., `v0.2.0`)
+   - `PINNED_JAR_ASSET` (the universal JAR to download)
+2. Get the SHA-256 from `checksums.txt` in that release:
+   ```bash
+   curl -L "https://github.com/albertocavalcante/groovy-lsp/releases/download/<TAG>/checksums.txt"
+   ```
+   Copy the checksum line for the chosen JAR into `PINNED_JAR_SHA256` in `scripts/prepare-server.js`.
+3. Clear old artifacts and re-fetch:
+   ```bash
+   npm run clean
+   npm run prepare-server
+   ```
+4. Commit the updated constants and regenerated cache key (the script hash changes automatically).
+
 ### Testing the Extension
 
 1. **Open in VS Code**

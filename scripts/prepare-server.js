@@ -9,6 +9,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
+const crypto = require('node:crypto');
 
 const SERVER_DIR = path.join(__dirname, '..', 'server');
 const CANONICAL_JAR_NAME = 'groovy-lsp.jar';
@@ -20,6 +21,7 @@ const PINNED_RELEASE_TAG = 'v0.2.0';
 const PINNED_JAR_ASSET = 'groovy-lsp-0.2.0-linux-amd64.jar';
 // v0.2.0 ships a single universal JAR; reuse the linux-amd64 artifact for all platforms
 const PINNED_DOWNLOAD_URL = `https://github.com/albertocavalcante/groovy-lsp/releases/download/${PINNED_RELEASE_TAG}/${PINNED_JAR_ASSET}`;
+const PINNED_JAR_SHA256 = '0ec247be16c0cce5217a1bd4b6242f67c9ed002e486b749479d50c980a328601';
 
 /**
  * Finds local Groovy LSP JAR file in common development locations
@@ -143,11 +145,32 @@ function writeInstalledVersion(versionTag) {
 }
 
 /**
+ * Computes SHA-256 for a file path
+ */
+function sha256File(filePath) {
+    const hash = crypto.createHash('sha256');
+    const data = fs.readFileSync(filePath);
+    hash.update(data);
+    return hash.digest('hex');
+}
+
+/**
+ * Validates the checksum of the pinned JAR
+ */
+function verifyPinnedChecksum(filePath) {
+    const actual = sha256File(filePath);
+    if (actual !== PINNED_JAR_SHA256) {
+        throw new Error(`Checksum mismatch for ${filePath}. Expected ${PINNED_JAR_SHA256} but got ${actual}`);
+    }
+}
+
+/**
  * Downloads the pinned release JAR from GitHub
  */
 async function downloadPinnedRelease() {
     console.log(`Downloading Groovy LSP ${PINNED_RELEASE_TAG} (${PINNED_JAR_ASSET})...`);
     await downloadFile(PINNED_DOWNLOAD_URL, JAR_PATH);
+    verifyPinnedChecksum(JAR_PATH);
     writeInstalledVersion(PINNED_RELEASE_TAG);
     console.log(`✓ Downloaded and saved as ${CANONICAL_JAR_NAME}`);
 }
@@ -206,8 +229,14 @@ async function prepareServer() {
 
         // Check if pinned JAR already exists (unless force download)
         if (!forceDownload && isPinnedJarInstalled) {
-            console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${PINNED_RELEASE_TAG}`);
-            return;
+            try {
+                verifyPinnedChecksum(JAR_PATH);
+                console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${PINNED_RELEASE_TAG}`);
+                return;
+            } catch (checksumError) {
+                console.warn(`Checksum mismatch for existing ${CANONICAL_JAR_NAME}: ${checksumError.message}`);
+                console.warn('Re-downloading pinned Groovy LSP...');
+            }
         }
 
         // Download from GitHub releases
