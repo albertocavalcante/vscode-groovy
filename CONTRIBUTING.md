@@ -76,7 +76,8 @@ vscode-groovy/
    npm run clean
    npm run prepare-server
    ```
-4. Commit the updated constants and regenerated cache key (the script hash changes automatically).
+4. (Optional) To experiment with the newest groovy-lsp release without changing the pinned defaults, run with `USE_LATEST_GROOVY_LSP=true npm run prepare-server`. If a `checksums.txt` asset exists in the release, the script will verify the downloaded JAR automatically.
+5. Commit the updated constants and regenerated cache key (the script hash changes automatically).
 
 ### Testing the Extension
 

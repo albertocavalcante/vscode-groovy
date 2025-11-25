@@ -22,6 +22,7 @@ const PINNED_JAR_ASSET = 'groovy-lsp-0.2.0-linux-amd64.jar';
 // v0.2.0 ships a single universal JAR; reuse the linux-amd64 artifact for all platforms
 const PINNED_DOWNLOAD_URL = `https://github.com/albertocavalcante/groovy-lsp/releases/download/${PINNED_RELEASE_TAG}/${PINNED_JAR_ASSET}`;
 const PINNED_JAR_SHA256 = '0ec247be16c0cce5217a1bd4b6242f67c9ed002e486b749479d50c980a328601';
+const GITHUB_RELEASE_API = 'https://api.github.com/repos/albertocavalcante/groovy-lsp/releases/latest';
 
 /**
  * Finds local Groovy LSP JAR file in common development locations
@@ -158,23 +159,24 @@ function sha256File(filePath) {
 }
 
 /**
- * Validates the checksum of the pinned JAR
+ * Validates the checksum of the JAR if expected hash is available
  */
-async function verifyPinnedChecksum(filePath) {
+async function verifyChecksum(filePath, expectedHash) {
+    if (!expectedHash) return;
     const actual = await sha256File(filePath);
-    if (actual !== PINNED_JAR_SHA256) {
-        throw new Error(`Checksum mismatch for ${filePath}. Expected ${PINNED_JAR_SHA256} but got ${actual}`);
+    if (actual !== expectedHash) {
+        throw new Error(`Checksum mismatch for ${filePath}. Expected ${expectedHash} but got ${actual}`);
     }
 }
 
 /**
- * Downloads the pinned release JAR from GitHub
+ * Downloads the target release JAR from GitHub
  */
-async function downloadPinnedRelease() {
-    console.log(`Downloading Groovy LSP ${PINNED_RELEASE_TAG} (${PINNED_JAR_ASSET})...`);
-    await downloadFile(PINNED_DOWNLOAD_URL, JAR_PATH);
+async function downloadRelease(target) {
+    console.log(`Downloading Groovy LSP ${target.tag} (${target.assetName})...`);
+    await downloadFile(target.downloadUrl, JAR_PATH);
     try {
-        await verifyPinnedChecksum(JAR_PATH);
+        await verifyChecksum(JAR_PATH, target.checksum);
     } catch (error) {
         try {
             fs.unlinkSync(JAR_PATH);
@@ -183,7 +185,7 @@ async function downloadPinnedRelease() {
         }
         throw error;
     }
-    writeInstalledVersion(PINNED_RELEASE_TAG);
+    writeInstalledVersion(target.tag);
     console.log(`✓ Downloaded and saved as ${CANONICAL_JAR_NAME}`);
 }
 
@@ -238,17 +240,40 @@ async function prepareServer() {
             }
         }
 
+        const useLatest = process.env.USE_LATEST_GROOVY_LSP === 'true';
+        const target = useLatest
+            ? await (async () => {
+                const info = await getLatestReleaseInfo();
+                const jarAsset = selectJarAsset(info.assets);
+                if (!jarAsset) {
+                    throw new Error('No JAR file found in the latest release');
+                }
+                const checksum = await fetchChecksumForAsset(info.assets, jarAsset.name);
+                return {
+                    tag: info.tag_name,
+                    assetName: jarAsset.name,
+                    downloadUrl: jarAsset.browser_download_url,
+                    checksum
+                };
+            })()
+            : {
+                tag: PINNED_RELEASE_TAG,
+                assetName: PINNED_JAR_ASSET,
+                downloadUrl: PINNED_DOWNLOAD_URL,
+                checksum: PINNED_JAR_SHA256
+            };
+
         const jarExists = fs.existsSync(JAR_PATH);
 
         if (!forceDownload && jarExists) {
-            if (installedVersion === PINNED_RELEASE_TAG) {
+            if (installedVersion === target.tag) {
                 try {
-                    await verifyPinnedChecksum(JAR_PATH);
-                    console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${PINNED_RELEASE_TAG}`);
+                    await verifyChecksum(JAR_PATH, target.checksum);
+                    console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${target.tag}`);
                     return;
                 } catch (checksumError) {
                     console.warn(`Checksum mismatch for existing ${CANONICAL_JAR_NAME}: ${checksumError.message}`);
-                    console.warn('Re-downloading pinned Groovy LSP...');
+                    console.warn('Re-downloading Groovy LSP...');
                     try {
                         fs.unlinkSync(JAR_PATH);
                     } catch (_) {
@@ -257,13 +282,13 @@ async function prepareServer() {
                 }
             } else {
                 try {
-                    await verifyPinnedChecksum(JAR_PATH);
-                    writeInstalledVersion(PINNED_RELEASE_TAG);
-                    console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${PINNED_RELEASE_TAG} (version marker refreshed)`);
+                    await verifyChecksum(JAR_PATH, target.checksum);
+                    writeInstalledVersion(target.tag);
+                    console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${target.tag} (version marker refreshed)`);
                     return;
                 } catch (checksumError) {
                     console.warn(`Existing ${CANONICAL_JAR_NAME} failed checksum: ${checksumError.message}`);
-                    console.warn('Re-downloading pinned Groovy LSP...');
+                    console.warn('Re-downloading Groovy LSP...');
                     try {
                         fs.unlinkSync(JAR_PATH);
                     } catch (_) {
@@ -274,8 +299,8 @@ async function prepareServer() {
         }
 
         // Download from GitHub releases
-        console.log('Downloading pinned Groovy LSP release...');
-        await downloadPinnedRelease();
+        console.log(`Downloading Groovy LSP release (${useLatest ? 'latest' : target.tag})...`);
+        await downloadRelease(target);
 
     } catch (error) {
         console.error('❌ Error preparing Groovy Language Server:');
@@ -289,8 +314,9 @@ async function prepareServer() {
 
         console.error('');
         console.error(`Pinned release: ${PINNED_RELEASE_TAG}`);
-        console.error(`Expected asset: ${PINNED_JAR_ASSET}`);
+        console.error(`Pinned asset: ${PINNED_JAR_ASSET}`);
         console.error(`Release page: https://github.com/albertocavalcante/groovy-lsp/releases/tag/${PINNED_RELEASE_TAG}`);
+        console.error('To try the latest available release instead, set USE_LATEST_GROOVY_LSP=true.');
         console.error('');
         console.error('You can also manually copy a JAR file to:');
         console.error(`  ${JAR_PATH}`);
@@ -334,3 +360,109 @@ if (require.main === module) {
 module.exports = {
     PINNED_RELEASE_TAG
 };
+/**
+ * Fetches JSON data from a URL
+ */
+function fetchJson(url) {
+    return new Promise((resolve, reject) => {
+        const headers = {
+            'User-Agent': 'vscode-groovy-extension'
+        };
+
+        // Add GitHub authentication if token is available (for CI rate limiting)
+        if (process.env.GITHUB_TOKEN) {
+            headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+        }
+
+        const request = https.get(url, { headers }, (response) => {
+            let data = '';
+
+            response.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            response.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+
+                    if (response.statusCode >= 400) {
+                        reject(new Error(`HTTP ${response.statusCode}: ${json.message || 'Request failed'}`));
+                        return;
+                    }
+
+                    resolve(json);
+                } catch (error) {
+                    reject(new Error(`Failed to parse JSON: ${error.message}`));
+                }
+            });
+        });
+
+        request.on('error', (error) => reject(error));
+        request.setTimeout(30000, () => {
+            request.destroy();
+            reject(new Error('Request timeout'));
+        });
+    });
+}
+
+/**
+ * Fetches text content from a URL
+ */
+function fetchText(url) {
+    return new Promise((resolve, reject) => {
+        const headers = { 'User-Agent': 'vscode-groovy-extension' };
+        if (process.env.GITHUB_TOKEN) {
+            headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+        }
+
+        const request = https.get(url, { headers }, (response) => {
+            let data = '';
+            response.on('data', chunk => { data += chunk; });
+            response.on('end', () => resolve(data));
+        });
+
+        request.on('error', reject);
+        request.setTimeout(30000, () => {
+            request.destroy();
+            reject(new Error('Request timeout'));
+        });
+    });
+}
+
+/**
+ * Gets latest release info from GitHub (non-prerelease)
+ */
+async function getLatestReleaseInfo() {
+    return await fetchJson(GITHUB_RELEASE_API);
+}
+
+/**
+ * Picks a JAR asset; prefer linux-amd64/universal
+ */
+function selectJarAsset(assets) {
+    if (!assets || assets.length === 0) return null;
+    const preferred = assets.find(a =>
+        a.name.endsWith('.jar') &&
+        a.name.includes('linux-amd64')
+    );
+    if (preferred) return preferred;
+    return assets.find(a => a.name.endsWith('.jar')) || null;
+}
+
+/**
+ * Attempts to find a checksum for the given asset name from checksums.txt
+ */
+async function fetchChecksumForAsset(assets, assetName) {
+    const checksumAsset = assets?.find(a => a.name === 'checksums.txt');
+    if (!checksumAsset) return null;
+    try {
+        const content = await fetchText(checksumAsset.browser_download_url);
+        const line = content.split('\n').find(l => l.trim().endsWith(` ${assetName}`));
+        if (!line) return null;
+        const [hash] = line.trim().split(/\s+/);
+        return hash || null;
+    } catch (error) {
+        console.warn(`Warning: Unable to read checksums.txt: ${error.message}`);
+        return null;
+    }
+}
