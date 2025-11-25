@@ -145,20 +145,23 @@ function writeInstalledVersion(versionTag) {
 }
 
 /**
- * Computes SHA-256 for a file path
+ * Computes SHA-256 for a file path (streaming to avoid large buffers)
  */
 function sha256File(filePath) {
-    const hash = crypto.createHash('sha256');
-    const data = fs.readFileSync(filePath);
-    hash.update(data);
-    return hash.digest('hex');
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha256');
+        const stream = fs.createReadStream(filePath);
+        stream.on('data', chunk => hash.update(chunk));
+        stream.on('end', () => resolve(hash.digest('hex')));
+        stream.on('error', reject);
+    });
 }
 
 /**
  * Validates the checksum of the pinned JAR
  */
-function verifyPinnedChecksum(filePath) {
-    const actual = sha256File(filePath);
+async function verifyPinnedChecksum(filePath) {
+    const actual = await sha256File(filePath);
     if (actual !== PINNED_JAR_SHA256) {
         throw new Error(`Checksum mismatch for ${filePath}. Expected ${PINNED_JAR_SHA256} but got ${actual}`);
     }
@@ -170,7 +173,16 @@ function verifyPinnedChecksum(filePath) {
 async function downloadPinnedRelease() {
     console.log(`Downloading Groovy LSP ${PINNED_RELEASE_TAG} (${PINNED_JAR_ASSET})...`);
     await downloadFile(PINNED_DOWNLOAD_URL, JAR_PATH);
-    verifyPinnedChecksum(JAR_PATH);
+    try {
+        await verifyPinnedChecksum(JAR_PATH);
+    } catch (error) {
+        try {
+            fs.unlinkSync(JAR_PATH);
+        } catch (_) {
+            // best effort cleanup
+        }
+        throw error;
+    }
     writeInstalledVersion(PINNED_RELEASE_TAG);
     console.log(`✓ Downloaded and saved as ${CANONICAL_JAR_NAME}`);
 }
@@ -209,6 +221,7 @@ async function prepareServer() {
 
                     if (localStat.mtime <= existingStat.mtime) {
                         console.log(`✓ Using existing ${CANONICAL_JAR_NAME} (up to date)`);
+                        writeInstalledVersion('local');
                         shouldCopy = false;
                     }
                 }
@@ -225,17 +238,38 @@ async function prepareServer() {
             }
         }
 
-        const isPinnedJarInstalled = fs.existsSync(JAR_PATH) && installedVersion === PINNED_RELEASE_TAG;
+        const jarExists = fs.existsSync(JAR_PATH);
 
-        // Check if pinned JAR already exists (unless force download)
-        if (!forceDownload && isPinnedJarInstalled) {
-            try {
-                verifyPinnedChecksum(JAR_PATH);
-                console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${PINNED_RELEASE_TAG}`);
-                return;
-            } catch (checksumError) {
-                console.warn(`Checksum mismatch for existing ${CANONICAL_JAR_NAME}: ${checksumError.message}`);
-                console.warn('Re-downloading pinned Groovy LSP...');
+        if (!forceDownload && jarExists) {
+            if (installedVersion === PINNED_RELEASE_TAG) {
+                try {
+                    await verifyPinnedChecksum(JAR_PATH);
+                    console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${PINNED_RELEASE_TAG}`);
+                    return;
+                } catch (checksumError) {
+                    console.warn(`Checksum mismatch for existing ${CANONICAL_JAR_NAME}: ${checksumError.message}`);
+                    console.warn('Re-downloading pinned Groovy LSP...');
+                    try {
+                        fs.unlinkSync(JAR_PATH);
+                    } catch (_) {
+                        // best effort cleanup
+                    }
+                }
+            } else {
+                try {
+                    await verifyPinnedChecksum(JAR_PATH);
+                    writeInstalledVersion(PINNED_RELEASE_TAG);
+                    console.log(`✓ Using existing ${CANONICAL_JAR_NAME} for ${PINNED_RELEASE_TAG} (version marker refreshed)`);
+                    return;
+                } catch (checksumError) {
+                    console.warn(`Existing ${CANONICAL_JAR_NAME} failed checksum: ${checksumError.message}`);
+                    console.warn('Re-downloading pinned Groovy LSP...');
+                    try {
+                        fs.unlinkSync(JAR_PATH);
+                    } catch (_) {
+                        // best effort cleanup
+                    }
+                }
             }
         }
 
