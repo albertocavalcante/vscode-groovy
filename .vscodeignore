@@ -18,6 +18,8 @@ esbuild.js
 eslint.config.mjs
 renovate.json
 .gitignore
+package-lock.json
+yarn.lock
 tsconfig.json
 client/src/**
 client/node_modules/**
