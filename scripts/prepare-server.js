@@ -180,8 +180,8 @@ async function downloadRelease(target) {
     } catch (error) {
         try {
             fs.unlinkSync(JAR_PATH);
-        } catch (_) {
-            // best effort cleanup
+        } catch (cleanupError) {
+            console.warn(`Warning: Failed to remove corrupted download ${JAR_PATH}: ${cleanupError.message}`);
         }
         throw error;
     }
@@ -276,8 +276,8 @@ async function prepareServer() {
                     console.warn('Re-downloading Groovy LSP...');
                     try {
                         fs.unlinkSync(JAR_PATH);
-                    } catch (_) {
-                        // best effort cleanup
+                    } catch (cleanupError) {
+                        console.warn(`Warning: Failed to remove corrupted JAR ${JAR_PATH}: ${cleanupError.message}`);
                     }
                 }
             } else {
@@ -291,8 +291,8 @@ async function prepareServer() {
                     console.warn('Re-downloading Groovy LSP...');
                     try {
                         fs.unlinkSync(JAR_PATH);
-                    } catch (_) {
-                        // best effort cleanup
+                    } catch (cleanupError) {
+                        console.warn(`Warning: Failed to remove corrupted JAR ${JAR_PATH}: ${cleanupError.message}`);
                     }
                 }
             }
