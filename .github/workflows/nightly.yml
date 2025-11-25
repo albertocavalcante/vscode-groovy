@@ -99,7 +99,7 @@ jobs:
       - name: Package VSIX
         run: npm run package
         env:
-          USE_LATEST_GROOVY_LSP: ${{ env.USE_LATEST_LSP_INPUT }}
+          SKIP_PREPARE_SERVER: true
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
