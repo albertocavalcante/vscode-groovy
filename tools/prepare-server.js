@@ -387,7 +387,6 @@ function validateJarFile(filePath) {
 
         // Try to read the end of the file to verify ZIP end signature
         // ZIP files end with PK\x05\x06 (End of Central Directory signature)
-        const endBuffer = Buffer.alloc(22); // Minimum size of EOCD record
         const endPos = Math.max(0, stat.size - 65536); // Search last 64KB
         const searchBuffer = Buffer.alloc(Math.min(65536, stat.size));
         fs.readSync(fd, searchBuffer, 0, searchBuffer.length, endPos);
