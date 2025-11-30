@@ -301,7 +301,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run prepare-server && npm run package-build",
+    "vscode:prepublish": "npm run prepare-server && node tools/validate-server.js && npm run package-build",
     "prepare-server": "node tools/prepare-server.js",
     "prepare-server:local": "PREFER_LOCAL=true node tools/prepare-server.js",
     "prepare-server:download": "FORCE_DOWNLOAD=true node tools/prepare-server.js",
