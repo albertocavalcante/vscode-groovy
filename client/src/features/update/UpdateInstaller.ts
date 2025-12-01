@@ -97,53 +97,88 @@ export class UpdateInstaller {
      */
     private downloadFile(url: string, filePath: string): Promise<void> {
         return new Promise((resolve, reject) => {
-            const handleRequest = (requestUrl: string) => {
-                const request = https.get(requestUrl, (response) => {
-                    // Handle redirects
-                    if (
-                        response.statusCode &&
-                        response.statusCode >= 300 &&
-                        response.statusCode < 400 &&
-                        response.headers.location
-                    ) {
-                        return handleRequest(response.headers.location);
-                    }
+            this.executeDownloadRequest(url, filePath, resolve, reject);
+        });
+    }
 
-                    if (response.statusCode !== 200) {
-                        reject(
-                            new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`)
-                        );
-                        return;
-                    }
+    /**
+     * Executes the download request with redirect handling
+     */
+    private executeDownloadRequest(
+        url: string,
+        filePath: string,
+        resolve: () => void,
+        reject: (error: Error) => void
+    ): void {
+        const request = https.get(url, (response) => {
+            if (this.isRedirect(response)) {
+                this.executeDownloadRequest(response.headers.location!, filePath, resolve, reject);
+                return;
+            }
 
-                    // Create file stream only when we have a successful response
-                    const file = fs.createWriteStream(filePath);
+            if (response.statusCode !== 200) {
+                reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+                return;
+            }
 
-                    file.on('error', (error) => {
-                        this.cleanupFile(filePath);
-                        reject(error);
-                    });
+            this.streamResponseToFile(response, filePath, resolve, reject);
+        });
 
-                    file.on('finish', () => {
-                        file.close();
-                        resolve();
-                    });
+        this.setupRequestErrorHandlers(request, filePath, reject);
+    }
 
-                    response.pipe(file);
-                });
+    /**
+     * Checks if response is a redirect
+     */
+    private isRedirect(response: any): boolean {
+        return !!(
+            response.statusCode &&
+            response.statusCode >= 300 &&
+            response.statusCode < 400 &&
+            response.headers.location
+        );
+    }
 
-                request.on('error', (error) => {
-                    this.cleanupFile(filePath);
-                    reject(error);
-                });
+    /**
+     * Streams HTTP response to file
+     */
+    private streamResponseToFile(
+        response: any,
+        filePath: string,
+        resolve: () => void,
+        reject: (error: Error) => void
+    ): void {
+        const file = fs.createWriteStream(filePath);
 
-                request.setTimeout(this.timeout, () => {
-                    request.destroy();
-                    reject(new Error('Download timeout'));
-                });
-            };
+        file.on('error', (error) => {
+            this.cleanupFile(filePath);
+            reject(error);
+        });
 
-            handleRequest(url);
+        file.on('finish', () => {
+            file.close();
+            resolve();
+        });
+
+        response.pipe(file);
+    }
+
+    /**
+     * Sets up error handlers for HTTP request
+     */
+    private setupRequestErrorHandlers(
+        request: any,
+        filePath: string,
+        reject: (error: Error) => void
+    ): void {
+        request.on('error', (error: Error) => {
+            this.cleanupFile(filePath);
+            reject(error);
+        });
+
+        request.setTimeout(this.timeout, () => {
+            request.destroy();
+            reject(new Error('Download timeout'));
         });
     }
 

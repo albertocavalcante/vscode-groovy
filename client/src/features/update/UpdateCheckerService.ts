@@ -79,42 +79,66 @@ export class UpdateCheckerService {
      * @param force - If true, bypasses cache and performs immediate check
      */
     async checkForUpdates(force: boolean = false): Promise<UpdateCheckResult> {
-        if (this.disposed) {
-            return {
-                status: 'error',
-                installedVersion: null,
-                latestVersion: null,
-                releaseUrl: null,
-                error: 'Service has been disposed'
-            };
-        }
-
-        if (!this.context || !this.versionCache || !this.updateInstaller) {
-            return {
-                status: 'error',
-                installedVersion: null,
-                latestVersion: null,
-                releaseUrl: null,
-                error: 'Service not initialized'
-            };
+        const validationResult = this.validateServiceState();
+        if (validationResult) {
+            return validationResult;
         }
 
         const config = getUpdateConfiguration();
+        
+        const airgapResult = this.checkAirgapMode(force, config);
+        if (airgapResult) {
+            return airgapResult;
+        }
 
-        // Check airgap mode (unless forced)
+        const installedVersion = this.updateInstaller!.getInstalledVersion();
+        const versionValidationResult = this.validateInstalledVersion(installedVersion);
+        if (versionValidationResult) {
+            return versionValidationResult;
+        }
+
+        const latestRelease = await this.fetchLatestRelease(force, installedVersion!);
+        if (!latestRelease) {
+            return this.createErrorResult(installedVersion!, 'Failed to fetch latest release from GitHub');
+        }
+
+        return await this.processVersionComparison(installedVersion!, latestRelease, force, config);
+    }
+
+    /**
+     * Validates service state before performing update check
+     */
+    private validateServiceState(): UpdateCheckResult | null {
+        if (this.disposed) {
+            return this.createErrorResult(null, 'Service has been disposed');
+        }
+
+        if (!this.context || !this.versionCache || !this.updateInstaller) {
+            return this.createErrorResult(null, 'Service not initialized');
+        }
+
+        return null;
+    }
+
+    /**
+     * Checks if airgap mode is enabled and should skip update check
+     */
+    private checkAirgapMode(force: boolean, config: ReturnType<typeof getUpdateConfiguration>): UpdateCheckResult | null {
         if (!force && config.airgapMode) {
             return {
                 status: 'skipped',
-                installedVersion: this.updateInstaller.getInstalledVersion(),
+                installedVersion: this.updateInstaller!.getInstalledVersion(),
                 latestVersion: null,
                 releaseUrl: null
             };
         }
+        return null;
+    }
 
-        // Get installed version
-        const installedVersion = this.updateInstaller.getInstalledVersion();
-
-        // Check if installed version is valid for comparison
+    /**
+     * Validates if installed version is valid for comparison
+     */
+    private validateInstalledVersion(installedVersion: string | null): UpdateCheckResult | null {
         if (!installedVersion || !this.versionChecker.isValidVersion(installedVersion)) {
             return {
                 status: 'skipped',
@@ -123,56 +147,74 @@ export class UpdateCheckerService {
                 releaseUrl: null
             };
         }
+        return null;
+    }
 
-        // Try to use cached release info (unless forced)
-        let latestRelease: ReleaseInfo | null = null;
-        
+    /**
+     * Fetches latest release from cache or GitHub API
+     */
+    private async fetchLatestRelease(force: boolean, installedVersion: string): Promise<ReleaseInfo | null> {
         if (!force) {
-            const cached = this.versionCache.getCachedRelease();
+            const cached = this.versionCache!.getCachedRelease();
             if (cached) {
-                latestRelease = cached.release;
+                return cached.release;
             }
         }
 
-        // Fetch latest release if not cached
-        if (!latestRelease) {
-            latestRelease = await this.versionChecker.getLatestRelease();
-            
-            if (!latestRelease) {
-                return {
-                    status: 'error',
-                    installedVersion,
-                    latestVersion: null,
-                    releaseUrl: null,
-                    error: 'Failed to fetch latest release from GitHub'
-                };
-            }
-
-            // Cache the result
-            await this.versionCache.setCachedRelease(latestRelease);
+        const latestRelease = await this.versionChecker.getLatestRelease();
+        if (latestRelease) {
+            await this.versionCache!.setCachedRelease(latestRelease);
         }
 
-        // Compare versions
-        const comparison = this.versionChecker.compareVersions(
-            latestRelease.version,
-            installedVersion
-        );
+        return latestRelease;
+    }
+
+    /**
+     * Processes version comparison and handles update logic
+     */
+    private async processVersionComparison(
+        installedVersion: string,
+        latestRelease: ReleaseInfo,
+        force: boolean,
+        config: ReturnType<typeof getUpdateConfiguration>
+    ): Promise<UpdateCheckResult> {
+        const comparison = this.versionChecker.compareVersions(latestRelease.version, installedVersion);
 
         if (comparison <= 0) {
-            // Up to date or latest is older
-            if (force) {
-                await this.updateNotifier.showUpToDateNotification(installedVersion);
-            }
-            
-            return {
-                status: 'up-to-date',
-                installedVersion,
-                latestVersion: latestRelease.version,
-                releaseUrl: latestRelease.releaseUrl
-            };
+            return await this.handleUpToDate(installedVersion, latestRelease, force);
         }
 
-        // Update available
+        return await this.handleUpdateAvailable(installedVersion, latestRelease, config);
+    }
+
+    /**
+     * Handles case when software is up to date
+     */
+    private async handleUpToDate(
+        installedVersion: string,
+        latestRelease: ReleaseInfo,
+        force: boolean
+    ): Promise<UpdateCheckResult> {
+        if (force) {
+            await this.updateNotifier.showUpToDateNotification(installedVersion);
+        }
+
+        return {
+            status: 'up-to-date',
+            installedVersion,
+            latestVersion: latestRelease.version,
+            releaseUrl: latestRelease.releaseUrl
+        };
+    }
+
+    /**
+     * Handles case when update is available
+     */
+    private async handleUpdateAvailable(
+        installedVersion: string,
+        latestRelease: ReleaseInfo,
+        config: ReturnType<typeof getUpdateConfiguration>
+    ): Promise<UpdateCheckResult> {
         const result: UpdateCheckResult = {
             status: 'update-available',
             installedVersion,
@@ -180,15 +222,26 @@ export class UpdateCheckerService {
             releaseUrl: latestRelease.releaseUrl
         };
 
-        // Handle auto-update
         if (config.autoUpdate) {
             await this.performAutoUpdate(latestRelease);
         } else {
-            // Show notification and handle user action
             await this.handleUpdateNotification(installedVersion, latestRelease);
         }
 
         return result;
+    }
+
+    /**
+     * Creates an error result
+     */
+    private createErrorResult(installedVersion: string | null, error: string): UpdateCheckResult {
+        return {
+            status: 'error',
+            installedVersion,
+            latestVersion: null,
+            releaseUrl: null,
+            error
+        };
     }
 
     /**
