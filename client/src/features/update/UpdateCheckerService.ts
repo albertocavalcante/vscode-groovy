@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { VersionChecker, ReleaseInfo } from './VersionChecker';
 import { VersionCache } from './VersionCache';
-import { UpdateNotifier, UpdateAction } from './UpdateNotifier';
+import { UpdateNotifier } from './UpdateNotifier';
 import { UpdateInstaller } from './UpdateInstaller';
 import { getUpdateConfiguration } from '../../configuration/settings';
 
