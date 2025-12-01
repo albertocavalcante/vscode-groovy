@@ -99,6 +99,10 @@
         "command": "groovy.repl.show",
         "title": "Groovy: Show REPL",
         "icon": "$(terminal)"
+      },
+      {
+        "command": "groovy.update.check",
+        "title": "Groovy: Check for LSP Updates"
       }
     ],
     "languages": [
@@ -296,6 +300,27 @@
           "type": "boolean",
           "default": true,
           "description": "Use semantic tokens for TODO comment highlighting (requires LSP semantic tokens support)"
+        },
+        "groovy.update.airgapMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Completely disable all network-based update checking. Enable this for air-gapped or restricted network environments."
+        },
+        "groovy.update.autoUpdate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically download and install Groovy LSP updates without prompting."
+        },
+        "groovy.update.checkOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check for Groovy LSP updates when the extension activates."
+        },
+        "groovy.update.checkInterval": {
+          "type": "number",
+          "default": 24,
+          "minimum": 1,
+          "description": "Hours between automatic update checks (minimum 1 hour)."
         }
       }
     }
@@ -332,6 +357,7 @@
     "chai": "^6.2.1",
     "esbuild": "^0.27.0",
     "eslint": "^9.13.0",
+    "fast-check": "^4.3.0",
     "mocha": "^11.7.5",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.7.3",

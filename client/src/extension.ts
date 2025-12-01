@@ -3,14 +3,15 @@
  * Modern, modular architecture with domain-driven design
  */
 
-import { ExtensionContext } from 'vscode';
+import { ExtensionContext, window } from 'vscode';
 import { initializeClient, startClient, stopClient } from './server/client';
 import { registerStatusBarItem } from './ui/statusBar';
-import { registerCommands } from './commands';
-import { setupConfigurationWatcher } from './configuration/watcher';
+import { registerCommands, setUpdateCheckerService } from './commands';
+import { setupConfigurationWatcher, setUpdateCheckerServiceRef, setOutputChannel } from './configuration/watcher';
 import { registerFormatting } from './features/formatting/formatter';
 import { replService } from './features/repl';
 import { registerGradleFeatures } from './features/gradle';
+import { UpdateCheckerService } from './features/update';
 
 /**
  * Activates the extension
@@ -19,12 +20,26 @@ export async function activate(context: ExtensionContext) {
     console.log('Groovy Language Extension is activating...');
 
     try {
+        // Create output channel for logging
+        const outputChannel = window.createOutputChannel('Groovy');
+        context.subscriptions.push(outputChannel);
+        setOutputChannel(outputChannel);
+
         // Initialize the LSP client with context
         initializeClient(context);
 
         // Register status bar indicator
         const statusBarDisposable = registerStatusBarItem();
         context.subscriptions.push(statusBarDisposable);
+
+        // Initialize update checker service
+        const updateCheckerService = new UpdateCheckerService();
+        updateCheckerService.initialize(context);
+        setUpdateCheckerService(updateCheckerService);
+        setUpdateCheckerServiceRef(updateCheckerService);
+        context.subscriptions.push({
+            dispose: () => updateCheckerService.dispose()
+        });
 
         // Register commands
         registerCommands(context);

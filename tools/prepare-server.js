@@ -11,7 +11,14 @@ const fs = require("node:fs");
 const path = require("node:path");
 const https = require("node:https");
 const crypto = require("node:crypto");
+const os = require("node:os");
 const { validateJarFile } = require("./validate-server.js");
+const { extractOrCopyJar, isZipFile } = require("./zip.js");
+const {
+  resolveGitHubToken,
+  isGitHubArtifactUrl,
+  transformArtifactUrl,
+} = require("./github-token.js");
 
 const GITHUB_API_BASE =
   "https://api.github.com/repos/albertocavalcante/groovy-lsp";
@@ -45,6 +52,8 @@ function parseArgs(argv = []) {
     latest: false,
     tag: null,
     local: null,
+    url: null,
+    checksum: null,
     forceDownload: false,
     channel: null,
     preferLocal: false,
@@ -74,6 +83,14 @@ function parseArgs(argv = []) {
         break;
       case "--local":
         parsed.local = expectValue(argv, i + 1, "--local");
+        i += 1;
+        break;
+      case "--url":
+        parsed.url = expectValue(argv, i + 1, "--url");
+        i += 1;
+        break;
+      case "--checksum":
+        parsed.checksum = expectValue(argv, i + 1, "--checksum");
         i += 1;
         break;
       case "--force-download":
@@ -303,11 +320,29 @@ async function resolveTarget(selection) {
 
 /**
  * Downloads a file from URL to local path
+ * @param {string} url - URL to download from
+ * @param {string} filePath - Local path to save to
+ * @param {object} options - Download options
+ * @param {string} [options.authToken] - Optional auth token for Authorization header
+ * @returns {Promise<{contentType: string}>} Response metadata
  */
-function downloadFile(url, filePath) {
+function downloadFile(url, filePath, options = {}) {
   return new Promise((resolve, reject) => {
     function handleRequest(requestUrl) {
-      const request = https.get(requestUrl, (response) => {
+      const parsedUrl = new URL(requestUrl);
+      const requestOptions = {
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        headers: {
+          "User-Agent": "vscode-groovy-extension",
+        },
+      };
+
+      if (options.authToken) {
+        requestOptions.headers["Authorization"] = `token ${options.authToken}`;
+      }
+
+      const request = https.get(requestOptions, (response) => {
         // Handle redirects
         if (
           response.statusCode >= 300 &&
@@ -325,6 +360,8 @@ function downloadFile(url, filePath) {
           return;
         }
 
+        const contentType = response.headers["content-type"] || "";
+
         // Create file stream only when we have a successful response
         const file = fs.createWriteStream(filePath);
 
@@ -335,7 +372,7 @@ function downloadFile(url, filePath) {
 
         file.on("finish", () => {
           file.close();
-          resolve();
+          resolve({ contentType });
         });
 
         response.pipe(file);
@@ -403,6 +440,97 @@ async function verifyChecksum(filePath, expectedHash) {
     throw new Error(
       `Checksum mismatch for ${filePath}. Expected ${expectedHash} but got ${actual}`,
     );
+  }
+}
+
+/**
+ * Downloads a JAR from a URL (handles ZIP extraction for GitHub artifacts)
+ * @param {string} url - URL to download from
+ * @param {string|null} expectedChecksum - Optional SHA256 checksum
+ */
+async function downloadFromUrl(url, expectedChecksum) {
+  let downloadUrl = url;
+  let needsExtraction = false;
+
+  // Transform GitHub artifact browser URLs to API URLs
+  if (isGitHubArtifactUrl(url)) {
+    console.log("Detected GitHub Actions artifact URL, transforming...");
+    downloadUrl = transformArtifactUrl(url);
+    needsExtraction = true; // Artifacts are always ZIPs
+    console.log(`API URL: ${downloadUrl}`);
+  }
+
+  // Resolve auth token
+  const authToken = resolveGitHubToken();
+  if (!authToken && downloadUrl.includes("api.github.com")) {
+    console.warn(
+      "⚠️  No GitHub token found. Artifact downloads may fail without authentication.",
+    );
+    console.warn(
+      "   Set GH_TOKEN or GITHUB_TOKEN, or run 'gh auth login' first.",
+    );
+  }
+
+  // Create temp directory for download
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "groovy-lsp-"));
+  const tempFile = path.join(tempDir, "download");
+
+  try {
+    console.log(`Downloading from URL: ${url}`);
+    const { contentType } = await downloadFile(downloadUrl, tempFile, {
+      authToken,
+    });
+
+    // Determine if we need to extract based on content-type or file inspection
+    const isZip =
+      needsExtraction ||
+      contentType.includes("application/zip") ||
+      contentType.includes("application/x-zip") ||
+      isZipFile(tempFile);
+
+    if (isZip) {
+      console.log("Download is a ZIP archive, extracting JAR...");
+      extractOrCopyJar(tempFile, JAR_PATH);
+    } else {
+      // Direct JAR download
+      console.log("Download is a direct JAR file...");
+      fs.copyFileSync(tempFile, JAR_PATH);
+    }
+
+    // Validate extracted/copied JAR
+    try {
+      validateJarFile(JAR_PATH);
+    } catch (error) {
+      try {
+        fs.unlinkSync(JAR_PATH);
+      } catch {
+        // ignore cleanup error
+      }
+      throw new Error(`Downloaded JAR validation failed: ${error.message}`);
+    }
+
+    // Verify checksum if provided
+    if (expectedChecksum) {
+      await verifyChecksum(JAR_PATH, expectedChecksum);
+      console.log("✓ Checksum verified");
+    } else {
+      console.warn(
+        "⚠️  No checksum provided for URL download; skipping verification.",
+      );
+    }
+
+    // Write version marker
+    const urlObj = new URL(url);
+    writeInstalledVersion(`url:${urlObj.pathname.split("/").pop()}`);
+
+    console.log(`✓ Downloaded and saved as ${CANONICAL_JAR_NAME}`);
+  } finally {
+    // Clean up temp directory
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore cleanup error
+    }
   }
 }
 
@@ -477,6 +605,13 @@ async function prepareServer(runtimeOptions = {}) {
       cliOptions.local ??
       process.env.GROOVY_LSP_LOCAL_JAR ??
       null;
+    const explicitUrl =
+      runtimeOptions.url ?? cliOptions.url ?? process.env.GROOVY_LSP_URL ?? null;
+    const explicitChecksum =
+      runtimeOptions.checksum ??
+      cliOptions.checksum ??
+      process.env.GROOVY_LSP_CHECKSUM ??
+      null;
     const installedVersion = readInstalledVersion();
 
     // Hard local override (highest precedence)
@@ -542,6 +677,13 @@ async function prepareServer(runtimeOptions = {}) {
 
       console.log(`Using explicitly provided local JAR: ${jarToUse}`);
       copyLocalJar(jarToUse, { forceDownload });
+      return;
+    }
+
+    // URL override (second highest precedence)
+    if (explicitUrl) {
+      console.log("Using explicitly provided URL for download...");
+      await downloadFromUrl(explicitUrl, explicitChecksum);
       return;
     }
 
@@ -888,6 +1030,8 @@ Options:
   --latest               Download the latest stable release (same as USE_LATEST_GROOVY_LSP=true)
   --channel <name>       Select channel: nightly | release
   --local <path>         Use a specific local groovy-lsp JAR (skips download)
+  --url <url>            Download from a URL (supports GitHub Actions artifacts)
+  --checksum <sha256>    Optional SHA256 checksum for URL downloads
   --prefer-local         Prefer local groovy-lsp builds from common paths
   --force-download       Always download/copy even if a JAR already exists
   --print-release-tag    Print the pinned release tag and exit
@@ -895,7 +1039,11 @@ Options:
 
 Environment:
   GROOVY_LSP_TAG, GROOVY_LSP_CHANNEL=nightly|release, GROOVY_LSP_LOCAL_JAR,
-  PREFER_LOCAL, USE_LATEST_GROOVY_LSP, FORCE_DOWNLOAD, SKIP_PREPARE_SERVER.
+  GROOVY_LSP_URL, GROOVY_LSP_CHECKSUM, PREFER_LOCAL, USE_LATEST_GROOVY_LSP,
+  FORCE_DOWNLOAD, SKIP_PREPARE_SERVER.
+
+Token resolution (for GitHub artifact downloads):
+  GH_TOKEN > GITHUB_TOKEN > gh auth token
 `.trim();
 
   console.log(help);
