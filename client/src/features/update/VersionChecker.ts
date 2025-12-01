@@ -142,7 +142,7 @@ export class VersionChecker {
 
             // Add GitHub authentication if token is available
             if (process.env.GITHUB_TOKEN) {
-                headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+                headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
             }
 
             const request = https.get(url, { headers }, (response) => {
