@@ -2,6 +2,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as https from 'node:https';
 import * as crypto from 'node:crypto';
+import {
+    DOWNLOAD_TIMEOUT_MS,
+    HTTP_STATUS_OK,
+    HTTP_STATUS_REDIRECT_MIN,
+    HTTP_STATUS_REDIRECT_MAX
+} from './constants';
 import type { ReleaseInfo } from './VersionChecker';
 
 /**
@@ -20,7 +26,7 @@ export class UpdateInstaller {
     private readonly serverDir: string;
     private readonly jarPath: string;
     private readonly versionFile: string;
-    private readonly timeout = 60000; // 60 seconds for downloads
+    private readonly timeout = DOWNLOAD_TIMEOUT_MS;
 
     constructor(extensionPath: string) {
         this.serverDir = path.join(extensionPath, 'server');
@@ -116,7 +122,7 @@ export class UpdateInstaller {
                 return;
             }
 
-            if (response.statusCode !== 200) {
+            if (response.statusCode !== HTTP_STATUS_OK) {
                 reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
                 return;
             }
@@ -133,8 +139,8 @@ export class UpdateInstaller {
     private isRedirect(response: any): boolean {
         return !!(
             response.statusCode &&
-            response.statusCode >= 300 &&
-            response.statusCode < 400 &&
+            response.statusCode >= HTTP_STATUS_REDIRECT_MIN &&
+            response.statusCode < HTTP_STATUS_REDIRECT_MAX &&
             response.headers.location
         );
     }

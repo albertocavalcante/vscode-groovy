@@ -4,6 +4,7 @@ import { VersionCache } from './VersionCache';
 import { UpdateNotifier } from './UpdateNotifier';
 import { UpdateInstaller } from './UpdateInstaller';
 import { getUpdateConfiguration } from '../../configuration/settings';
+import { INITIAL_CHECK_DELAY_MS, HOURS_TO_MS } from './constants';
 
 /**
  * Result of an update check operation
@@ -67,7 +68,7 @@ export class UpdateCheckerService {
                 this.checkForUpdates().catch((error) => {
                     console.error('Initial update check failed:', error);
                 });
-            }, 5000); // 5 second delay
+            }, INITIAL_CHECK_DELAY_MS);
         }
 
         // Schedule periodic checks
@@ -153,7 +154,7 @@ export class UpdateCheckerService {
     /**
      * Fetches latest release from cache or GitHub API
      */
-    private async fetchLatestRelease(force: boolean, installedVersion: string): Promise<ReleaseInfo | null> {
+    private async fetchLatestRelease(force: boolean, _installedVersion: string): Promise<ReleaseInfo | null> {
         if (!force) {
             const cached = this.versionCache!.getCachedRelease();
             if (cached) {
@@ -315,7 +316,7 @@ export class UpdateCheckerService {
         }
 
         // Schedule next check
-        const intervalMs = config.checkInterval * 60 * 60 * 1000; // Convert hours to ms
+        const intervalMs = config.checkInterval * HOURS_TO_MS;
         
         this.checkTimer = setTimeout(() => {
             this.checkForUpdates().catch((error) => {

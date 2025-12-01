@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ReleaseInfo } from './VersionChecker';
+import { DEFAULT_CHECK_INTERVAL_HOURS, MINIMUM_CHECK_INTERVAL_HOURS, HOURS_TO_MS } from './constants';
 
 /**
  * Cached release information with expiration
@@ -21,11 +22,11 @@ export class VersionCache {
     /**
      * Creates a new VersionCache instance
      * @param globalState - VS Code global state for persistence
-     * @param checkIntervalHours - Hours between checks (default 24)
+     * @param checkIntervalHours - Hours between checks
      */
-    constructor(globalState: vscode.Memento, checkIntervalHours: number = 24) {
+    constructor(globalState: vscode.Memento, checkIntervalHours: number = DEFAULT_CHECK_INTERVAL_HOURS) {
         this.globalState = globalState;
-        this.checkIntervalHours = Math.max(1, checkIntervalHours); // Minimum 1 hour
+        this.checkIntervalHours = Math.max(MINIMUM_CHECK_INTERVAL_HOURS, checkIntervalHours);
     }
 
     /**
@@ -53,7 +54,7 @@ export class VersionCache {
      */
     async setCachedRelease(release: ReleaseInfo): Promise<void> {
         const now = Date.now();
-        const expiresAt = now + (this.checkIntervalHours * 60 * 60 * 1000);
+        const expiresAt = now + (this.checkIntervalHours * HOURS_TO_MS);
 
         const cached: CachedRelease = {
             release,

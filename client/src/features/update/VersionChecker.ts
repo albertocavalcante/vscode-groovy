@@ -1,4 +1,5 @@
 import * as https from 'node:https';
+import { API_REQUEST_TIMEOUT_MS, HTTP_STATUS_CLIENT_ERROR_MIN, SEMVER_COMPONENT_COUNT } from './constants';
 
 /**
  * Release information from GitHub
@@ -17,7 +18,7 @@ export interface ReleaseInfo {
  */
 export class VersionChecker {
     private readonly githubApiBase = 'https://api.github.com/repos/albertocavalcante/groovy-lsp';
-    private readonly timeout = 30000; // 30 seconds
+    private readonly timeout = API_REQUEST_TIMEOUT_MS;
 
     /**
      * Fetches the latest release info from GitHub
@@ -157,7 +158,7 @@ export class VersionChecker {
                     try {
                         const json = JSON.parse(data);
 
-                        if (response.statusCode && response.statusCode >= 400) {
+                        if (response.statusCode && response.statusCode >= HTTP_STATUS_CLIENT_ERROR_MIN) {
                             reject(new Error(`HTTP ${response.statusCode}: ${json.message || 'Request failed'}`));
                             return;
                         }

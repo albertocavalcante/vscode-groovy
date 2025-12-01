@@ -11,6 +11,7 @@ export { VersionChecker } from './VersionChecker';
 export { UpdateNotifier } from './UpdateNotifier';
 export { UpdateInstaller } from './UpdateInstaller';
 export { VersionCache } from './VersionCache';
+export * from './constants';
 
 // Type exports
 export type { UpdateCheckResult, VersionInfo } from './UpdateCheckerService';
