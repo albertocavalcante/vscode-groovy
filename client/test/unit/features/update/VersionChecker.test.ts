@@ -115,7 +115,7 @@ describe('VersionChecker - Unit Tests', () => {
             try {
                 const result = await versionChecker.getLatestRelease();
                 // Result can be null (network error/no release) or ReleaseInfo (successful call)
-                expect(result === null || result !== null).to.be.true;
+                expect(result === null || typeof result === 'object').to.be.true;
             } catch (error) {
                 // Should not throw - errors should be caught and return null
                 expect.fail('getLatestRelease should not throw errors');
