@@ -266,7 +266,7 @@ interface UpdateCheckerState {
 
 ### Network Errors
 
-- **Timeout**: 30-second timeout for API requests; gracefully fail and retry on next check
+- **Timeout**: 30-second timeout for API requests (configured in `VersionChecker.ts` via `request.setTimeout(30000)`); gracefully fail and retry on next check
 - **Rate Limiting**: Detect 403/429 responses, extract `X-RateLimit-Reset` header, schedule retry
 - **DNS/Connection Failures**: Log warning, continue without update check, don't block activation
 

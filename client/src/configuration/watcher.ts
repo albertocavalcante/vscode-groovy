@@ -1,4 +1,4 @@
-import { workspace, Disposable, window, ConfigurationChangeEvent } from 'vscode';
+import { workspace, Disposable, window, ConfigurationChangeEvent, OutputChannel } from 'vscode';
 import {
     requiresServerRestart,
     canBeAppliedDynamically,
@@ -10,11 +10,30 @@ import { UpdateCheckerService } from '../features/update';
 // Reference to the update checker service
 let updateCheckerServiceRef: UpdateCheckerService | null = null;
 
+// Output channel for logging
+let outputChannel: OutputChannel | null = null;
+
 /**
  * Sets the UpdateCheckerService reference for configuration handling
  */
 export function setUpdateCheckerServiceRef(service: UpdateCheckerService): void {
     updateCheckerServiceRef = service;
+}
+
+/**
+ * Sets the output channel for logging
+ */
+export function setOutputChannel(channel: OutputChannel): void {
+    outputChannel = channel;
+}
+
+/**
+ * Logs a message to the output channel
+ */
+function log(message: string): void {
+    if (outputChannel) {
+        outputChannel.appendLine(`[Config] ${message}`);
+    }
 }
 
 /**
@@ -41,7 +60,7 @@ export function setupConfigurationWatcher(): Disposable {
             );
 
             if (answer === 'Restart Now') {
-                console.log('Configuration changed, restarting server...');
+                log('Configuration changed, restarting server...');
                 await restartClient();
             }
             return;
@@ -49,13 +68,13 @@ export function setupConfigurationWatcher(): Disposable {
 
         // Handle settings that can be applied dynamically
         if (canBeAppliedDynamically(event)) {
-            console.log('Configuration changed, notifying server...');
+            log('Configuration changed, notifying server...');
             const client = getClient();
             if (client) {
                 // The LSP client automatically sends workspace/didChangeConfiguration
                 // when configurationSection is set in client options
                 // No action needed here - just log for debugging
-                console.log('Server will be notified via workspace/didChangeConfiguration');
+                log('Server will be notified via workspace/didChangeConfiguration');
             }
         }
     });
@@ -74,13 +93,13 @@ async function handleUpdateConfigurationChange(event: ConfigurationChangeEvent):
         const config = workspace.getConfiguration('groovy.update');
         const airgapMode = config.get<boolean>('airgapMode', false);
         
-        console.log(`Airgap mode ${airgapMode ? 'enabled' : 'disabled'}`);
+        log(`Airgap mode ${airgapMode ? 'enabled' : 'disabled'}`);
         
         // If airgap mode was disabled, trigger an update check
         if (!airgapMode) {
-            console.log('Airgap mode disabled, triggering update check...');
+            log('Airgap mode disabled, triggering update check...');
             updateCheckerServiceRef.checkForUpdates().catch((error) => {
-                console.error('Update check after airgap mode toggle failed:', error);
+                log(`Update check after airgap mode toggle failed: ${error}`);
             });
         }
     }
@@ -90,11 +109,11 @@ async function handleUpdateConfigurationChange(event: ConfigurationChangeEvent):
         const config = workspace.getConfiguration('groovy.update');
         const autoUpdate = config.get<boolean>('autoUpdate', false);
         
-        console.log(`Auto-update ${autoUpdate ? 'enabled' : 'disabled'}`);
+        log(`Auto-update ${autoUpdate ? 'enabled' : 'disabled'}`);
     }
 
     // Handle checkInterval change - service will pick up new value on next check
     if (event.affectsConfiguration('groovy.update.checkInterval')) {
-        console.log('Update check interval changed');
+        log('Update check interval changed');
     }
 }

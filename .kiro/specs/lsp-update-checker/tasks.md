@@ -23,7 +23,7 @@
     - Implement getLatestRelease() to fetch from GitHub releases API
     - Implement compareVersions() for semantic version comparison
     - Implement isValidVersion() to validate version strings
-    - Handle network errors and timeouts gracefully
+    - Handle network errors and timeouts gracefully (30-second timeout via request.setTimeout in fetchJson/fetchText methods)
     - _Requirements: 1.1, 9.1, 9.2, 9.3_
   - [x] 2.2 Write property test for semver comparison
     - **Property 1: Semantic version comparison follows semver rules**

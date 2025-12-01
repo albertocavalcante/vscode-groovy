@@ -3,11 +3,11 @@
  * Modern, modular architecture with domain-driven design
  */
 
-import { ExtensionContext } from 'vscode';
+import { ExtensionContext, window } from 'vscode';
 import { initializeClient, startClient, stopClient } from './server/client';
 import { registerStatusBarItem } from './ui/statusBar';
 import { registerCommands, setUpdateCheckerService } from './commands';
-import { setupConfigurationWatcher, setUpdateCheckerServiceRef } from './configuration/watcher';
+import { setupConfigurationWatcher, setUpdateCheckerServiceRef, setOutputChannel } from './configuration/watcher';
 import { registerFormatting } from './features/formatting/formatter';
 import { replService } from './features/repl';
 import { registerGradleFeatures } from './features/gradle';
@@ -20,6 +20,11 @@ export async function activate(context: ExtensionContext) {
     console.log('Groovy Language Extension is activating...');
 
     try {
+        // Create output channel for logging
+        const outputChannel = window.createOutputChannel('Groovy');
+        context.subscriptions.push(outputChannel);
+        setOutputChannel(outputChannel);
+
         // Initialize the LSP client with context
         initializeClient(context);
 

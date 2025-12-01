@@ -21,7 +21,7 @@ This feature adds automatic version checking for the Groovy Language Server (LSP
 
 #### Acceptance Criteria
 
-1. WHEN the extension activates AND airgap mode is disabled THEN the Update_Checker SHALL query the GitHub releases API for the latest Groovy LSP version within 30 seconds of activation.
+1. WHEN the extension activates AND airgap mode is disabled THEN the Update_Checker SHALL query the GitHub releases API for the latest Groovy LSP version within 30 seconds of activation (implementation uses 5-second delay to avoid blocking activation).
 2. WHEN the latest release version is newer than the installed version THEN the Update_Checker SHALL display an information notification with the new version number.
 3. WHEN displaying an update notification THEN the Update_Checker SHALL provide "Always Update", "Update Once", and "Release Notes" action buttons.
 4. WHEN the user dismisses the notification without selecting an action THEN the Update_Checker SHALL not perform any update and SHALL check again on next activation.

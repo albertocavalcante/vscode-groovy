@@ -6,6 +6,18 @@ import proxyquire = require('proxyquire');
 const onDidChangeConfigurationStub = sinon.stub();
 const getConfigurationStub = sinon.stub();
 const showInformationMessageStub = sinon.stub();
+const createOutputChannelStub = sinon.stub();
+
+const mockOutputChannel = {
+    appendLine: sinon.stub(),
+    append: sinon.stub(),
+    clear: sinon.stub(),
+    show: sinon.stub(),
+    hide: sinon.stub(),
+    dispose: sinon.stub()
+};
+
+createOutputChannelStub.returns(mockOutputChannel);
 
 const vscode = {
     workspace: {
@@ -13,7 +25,8 @@ const vscode = {
         getConfiguration: getConfigurationStub
     },
     window: {
-        showInformationMessage: showInformationMessageStub
+        showInformationMessage: showInformationMessageStub,
+        createOutputChannel: createOutputChannelStub
     }
 };
 
@@ -38,7 +51,7 @@ const clientModule = {
 };
 
 // Load watcher module with mocked dependencies
-const { setupConfigurationWatcher, setUpdateCheckerServiceRef } = proxyquire.noCallThru()('../../../src/configuration/watcher', {
+const { setupConfigurationWatcher, setUpdateCheckerServiceRef, setOutputChannel } = proxyquire.noCallThru()('../../../src/configuration/watcher', {
     'vscode': vscode,
     './settings': settingsModule,
     '../server/client': clientModule,
@@ -55,10 +68,14 @@ describe('Configuration Watcher - Integration Tests', () => {
         // Create mock update checker service
         mockUpdateCheckerService = new MockUpdateCheckerService();
 
+        // Set output channel for logging
+        setOutputChannel(mockOutputChannel as any);
+
         // Reset stubs
         onDidChangeConfigurationStub.reset();
         getConfigurationStub.reset();
         showInformationMessageStub.reset();
+        mockOutputChannel.appendLine.reset();
         settingsModule.requiresServerRestart.reset();
         settingsModule.canBeAppliedDynamically.reset();
         settingsModule.affectsUpdateConfiguration.reset();
