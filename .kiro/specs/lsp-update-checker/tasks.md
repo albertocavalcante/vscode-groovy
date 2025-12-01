@@ -1,0 +1,137 @@
+# Implementation Plan
+
+- [x] 1. Set up project structure and configuration
+  - [x] 1.1 Create update feature directory structure
+    - Create `client/src/features/update/` directory
+    - Create index.ts with public exports
+    - _Requirements: 1.1, 4.1, 5.1_
+  - [x] 1.2 Add new configuration settings to package.json
+    - Add `groovy.update.airgapMode` (boolean, default false)
+    - Add `groovy.update.autoUpdate` (boolean, default false)
+    - Add `groovy.update.checkOnStartup` (boolean, default true)
+    - Add `groovy.update.checkInterval` (number, default 24)
+    - Add `groovy.update.check` command
+    - _Requirements: 4.1, 5.1, 6.1, 7.1_
+  - [x] 1.3 Extend configuration/settings.ts with update settings
+    - Add UpdateConfiguration interface
+    - Add getUpdateConfiguration() function
+    - Add affectsUpdateConfiguration() helper
+    - _Requirements: 4.1, 5.1_
+
+- [x] 2. Implement VersionChecker with semver comparison
+  - [x] 2.1 Create VersionChecker.ts with GitHub API integration
+    - Implement getLatestRelease() to fetch from GitHub releases API
+    - Implement compareVersions() for semantic version comparison
+    - Implement isValidVersion() to validate version strings
+    - Handle network errors and timeouts gracefully
+    - _Requirements: 1.1, 9.1, 9.2, 9.3_
+  - [x] 2.2 Write property test for semver comparison
+    - **Property 1: Semantic version comparison follows semver rules**
+    - **Validates: Requirements 9.1, 9.3**
+  - [x] 2.3 Write property test for local/unknown version handling
+    - **Property 2: Local or unknown versions are never compared**
+    - **Validates: Requirements 9.2**
+  - [x] 2.4 Write unit tests for VersionChecker
+    - Test specific version comparison examples
+    - Test GitHub API response parsing
+    - Test error handling for network failures
+    - _Requirements: 9.1, 9.2, 9.3_
+
+- [x] 3. Implement VersionCache for persistence
+  - [x] 3.1 Create VersionCache.ts with globalState persistence
+    - Implement getCachedRelease() to retrieve cached data
+    - Implement setCachedRelease() to store with timestamp
+    - Implement clear() to reset cache
+    - Implement isExpired() to check cache validity
+    - _Requirements: 7.1_
+  - [x] 3.2 Write property test for cache validity
+    - **Property 5: Cache prevents redundant checks within interval**
+    - **Validates: Requirements 7.1**
+  - [x] 3.3 Write unit tests for VersionCache
+    - Test cache expiration logic
+    - Test persistence to globalState
+    - _Requirements: 7.1_
+
+- [x] 4. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 5. Implement UpdateNotifier for VS Code notifications
+  - [x] 5.1 Create UpdateNotifier.ts with notification handling
+    - Implement showUpdateNotification() with "Always Update", "Update Once", "Release Notes" buttons
+    - Implement showAutoUpdateNotification() for auto-update confirmations
+    - Implement showErrorNotification() for error display
+    - Implement showUpToDateNotification() for manual check confirmation
+    - _Requirements: 1.2, 1.3, 2.3, 2.4, 3.1, 5.2, 6.2, 6.3, 6.4_
+  - [x] 5.2 Write unit tests for UpdateNotifier
+    - Test notification button actions
+    - Test message formatting
+    - _Requirements: 1.2, 1.3_
+
+- [x] 6. Implement UpdateInstaller for JAR download and installation
+  - [x] 6.1 Create UpdateInstaller.ts with download and install logic
+    - Implement installRelease() to download and install JAR
+    - Implement getInstalledVersion() to read .groovy-lsp-version
+    - Reuse checksum verification from prepare-server.js patterns
+    - Handle download failures and checksum mismatches
+    - _Requirements: 2.1, 2.2, 2.4_
+  - [x] 6.2 Write unit tests for UpdateInstaller
+    - Test successful installation flow
+    - Test checksum verification
+    - Test error handling for download failures
+    - _Requirements: 2.1, 2.4_
+
+- [x] 7. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 8. Implement UpdateCheckerService orchestrator
+  - [x] 8.1 Create UpdateCheckerService.ts as main coordinator
+    - Implement initialize() to set up with extension context
+    - Implement checkForUpdates() with airgap mode check
+    - Implement dispose() for cleanup
+    - Coordinate VersionChecker, VersionCache, UpdateNotifier, UpdateInstaller
+    - Schedule background checks respecting checkInterval
+    - _Requirements: 1.1, 1.2, 1.4, 4.1, 4.2, 4.3, 4.4, 5.1, 5.3, 7.1, 7.3_
+  - [x] 8.2 Write property test for airgap mode isolation
+    - **Property 3: Airgap mode prevents all update network activity**
+    - **Validates: Requirements 4.1, 4.2**
+  - [x] 8.3 Write property test for auto-update behavior
+    - **Property 4: Auto-update behavior is determined by configuration**
+    - **Validates: Requirements 5.1, 5.3**
+  - [x] 8.4 Write unit tests for UpdateCheckerService
+    - Test initialization and disposal
+    - Test airgap mode blocking
+    - Test auto-update triggering
+    - Test cache usage
+    - _Requirements: 1.1, 4.1, 5.1, 7.1_
+
+- [x] 9. Integrate with extension activation and commands
+  - [x] 9.1 Register update commands in commands/index.ts
+    - Add `groovy.update.check` command handler
+    - Wire to UpdateCheckerService.checkForUpdates(force: true)
+    - _Requirements: 6.1_
+  - [x] 9.2 Integrate UpdateCheckerService in extension.ts
+    - Initialize UpdateCheckerService during activation
+    - Trigger startup check if checkOnStartup is enabled
+    - Add to context.subscriptions for proper disposal
+    - _Requirements: 1.1, 7.3_
+  - [x] 9.3 Update configuration watcher for update settings
+    - Handle airgap mode toggle (stop/start checks)
+    - Handle autoUpdate toggle
+    - _Requirements: 4.3, 4.4_
+  - [x] 9.4 Write integration tests for command execution
+    - Test manual check command
+    - Test configuration change handling
+    - _Requirements: 6.1, 4.3, 4.4_
+
+- [x] 10. Enhance existing Show Version command
+  - [x] 10.1 Update showVersion command to include latest version info
+    - Display installed version from .groovy-lsp-version
+    - Display latest available version from cache if known
+    - _Requirements: 8.1, 8.2_
+  - [x] 10.2 Write unit tests for enhanced version display
+    - Test version formatting
+    - Test handling of unknown versions
+    - _Requirements: 8.1, 8.2_
+
+- [x] 11. Final Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.

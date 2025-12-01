@@ -7,6 +7,13 @@ export interface GroovyConfiguration {
     serverPath: string | undefined;
 }
 
+export interface UpdateConfiguration {
+    airgapMode: boolean;
+    autoUpdate: boolean;
+    checkOnStartup: boolean;
+    checkInterval: number;
+}
+
 /**
  * Gets the current Groovy configuration
  */
@@ -18,6 +25,20 @@ export function getConfiguration(): GroovyConfiguration {
         traceServer: config.get<'off' | 'messages' | 'verbose'>('trace.server', 'off'),
         maxNumberOfProblems: config.get<number>('server.maxNumberOfProblems', 100),
         serverPath: config.get<string>('server.path')
+    };
+}
+
+/**
+ * Gets the current update configuration
+ */
+export function getUpdateConfiguration(): UpdateConfiguration {
+    const config = workspace.getConfiguration('groovy.update');
+
+    return {
+        airgapMode: config.get<boolean>('airgapMode', false),
+        autoUpdate: config.get<boolean>('autoUpdate', false),
+        checkOnStartup: config.get<boolean>('checkOnStartup', true),
+        checkInterval: config.get<number>('checkInterval', 24)
     };
 }
 
@@ -103,4 +124,14 @@ export function canBeAppliedDynamically(event: ConfigurationChangeEvent): boolea
            affectsConfiguration(event, 'trace.server') ||
            affectsConfiguration(event, 'compilation.incrementalThreshold') ||
            affectsConfiguration(event, 'compilation.maxWorkspaceFiles');
+}
+
+/**
+ * Checks if a configuration change affects update settings
+ */
+export function affectsUpdateConfiguration(event: ConfigurationChangeEvent): boolean {
+    return affectsConfiguration(event, 'update.airgapMode') ||
+           affectsConfiguration(event, 'update.autoUpdate') ||
+           affectsConfiguration(event, 'update.checkOnStartup') ||
+           affectsConfiguration(event, 'update.checkInterval');
 }
