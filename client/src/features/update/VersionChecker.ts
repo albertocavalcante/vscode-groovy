@@ -1,4 +1,4 @@
-import * as https from 'https';
+import * as https from 'node:https';
 
 /**
  * Release information from GitHub
@@ -26,7 +26,7 @@ export class VersionChecker {
         try {
             const releaseData = await this.fetchJson(`${this.githubApiBase}/releases/latest`);
             
-            if (!releaseData || !releaseData.tag_name) {
+            if (!releaseData?.tag_name) {
                 return null;
             }
 
@@ -118,16 +118,17 @@ export class VersionChecker {
         const normalized = this.normalizeVersion(version);
         
         // Match semantic version pattern: major.minor.patch
-        const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)/);
+        const regex = /^(\d+)\.(\d+)\.(\d+)/;
+        const match = regex.exec(normalized);
         
         if (!match) {
             return null;
         }
 
         return [
-            parseInt(match[1], 10),
-            parseInt(match[2], 10),
-            parseInt(match[3], 10)
+            Number.parseInt(match[1], 10),
+            Number.parseInt(match[2], 10),
+            Number.parseInt(match[3], 10)
         ];
     }
 

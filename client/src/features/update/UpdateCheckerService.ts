@@ -31,9 +31,9 @@ export interface VersionInfo {
  */
 export class UpdateCheckerService {
     private context: vscode.ExtensionContext | null = null;
-    private versionChecker: VersionChecker;
+    private readonly versionChecker: VersionChecker;
     private versionCache: VersionCache | null = null;
-    private updateNotifier: UpdateNotifier;
+    private readonly updateNotifier: UpdateNotifier;
     private updateInstaller: UpdateInstaller | null = null;
     private checkTimer: NodeJS.Timeout | null = null;
     private disposed = false;
