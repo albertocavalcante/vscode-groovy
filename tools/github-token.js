@@ -7,6 +7,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
+function debugLog(...args) {
+  if (process.env.DEBUG_GROOVY_TOOLS === "true") {
+    // eslint-disable-next-line no-console
+    console.debug(...args);
+  }
+}
+
 function resolveGhCliPath() {
   const explicit = process.env.GH_CLI_PATH;
   if (explicit) {
@@ -64,58 +71,27 @@ function resolveGitHubToken() {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
-    if (result.status === 0 && result.stdout) {
-      const token = result.stdout.trim();
-      if (token && !token.includes("not logged")) {
-        return token;
-      }
+    if (result.error?.code === "ETIMEDOUT") {
+      debugLog(
+        "Timed out while running 'gh auth token'. Proceeding without GitHub token.",
+      );
+      return null;
     }
+
+    if (result.status === 0) {
+      const token = (result.stdout || "").trim();
+      return token || null;
+    }
+
+    debugLog(
+      "Failed to resolve GitHub token via gh CLI. Proceeding without GitHub token.",
+      (result.stderr || "").trim(),
+    );
   } catch {
     // gh CLI not available or failed - ignore
   }
 
   return null;
-}
-
-/**
- * Checks if a URL requires GitHub authentication.
- * @param {string} url - URL to check
- * @returns {boolean}
- */
-function requiresGitHubAuth(url) {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-
-    // GitHub API always benefits from auth (rate limits)
-    if (hostname === "api.github.com") {
-      return true;
-    }
-
-    // GitHub Actions artifact URLs require auth
-    if (
-      hostname === "github.com" &&
-      parsed.pathname.includes("/actions/") &&
-      parsed.pathname.includes("/artifacts/")
-    ) {
-      return true;
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Checks if a URL is a GitHub Actions artifact URL.
- * These URLs need special handling (API transformation, ZIP extraction).
- *
- * @param {string} url - URL to check
- * @returns {boolean}
- */
-function isGitHubArtifactUrl(url) {
-  return resolveGitHubArtifactDownload(url).isArtifactZip;
 }
 
 /**
@@ -165,32 +141,8 @@ function resolveGitHubArtifactDownload(url) {
   }
 }
 
-/**
- * Transforms a GitHub browser artifact URL to an API download URL.
- *
- * Browser URL format:
- *   https://github.com/{owner}/{repo}/actions/runs/{run_id}/artifacts/{artifact_id}
- *
- * API URL format:
- *   https://api.github.com/repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip
- *
- * @param {string} browserUrl - GitHub browser artifact URL
- * @returns {string} API download URL
- */
-function transformArtifactUrl(browserUrl) {
-  const { downloadUrl, isArtifactZip, kind } =
-    resolveGitHubArtifactDownload(browserUrl);
-  if (!isArtifactZip || kind !== "browser") {
-    throw new Error(`Invalid GitHub artifact URL format: ${browserUrl}`);
-  }
-  return downloadUrl;
-}
-
 module.exports = {
   resolveGitHubToken,
   resolveGhCliPath,
-  requiresGitHubAuth,
-  isGitHubArtifactUrl,
   resolveGitHubArtifactDownload,
-  transformArtifactUrl,
 };

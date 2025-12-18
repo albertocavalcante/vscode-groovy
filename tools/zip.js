@@ -171,8 +171,11 @@ function extractJarFromZip(zipPath, destPath) {
 
   const entries = parseCentralDirectory(buffer, cdOffset, cdCount);
 
+  const isGroovyLspJarName = (name) =>
+    typeof name === "string" && name.toLowerCase().includes("groovy-lsp");
+
   // Find the first JAR file (prefer groovy-lsp if multiple)
-  const jarEntries = entries.filter(
+  let jarEntries = entries.filter(
     (e) => e.name.endsWith(".jar") && !e.name.includes("/"),
   );
 
@@ -182,12 +185,12 @@ function extractJarFromZip(zipPath, destPath) {
     if (nestedJars.length === 0) {
       throw new Error("No JAR file found in ZIP archive");
     }
-    jarEntries.push(...nestedJars);
+    jarEntries = nestedJars;
   }
 
   // Prefer groovy-lsp JAR if multiple
   const jarEntry =
-    jarEntries.find((e) => e.name.includes("groovy-lsp")) || jarEntries[0];
+    jarEntries.find((e) => isGroovyLspJarName(e.name)) || jarEntries[0];
 
   console.log(`Extracting ${jarEntry.name} from ZIP...`);
 
@@ -231,7 +234,10 @@ function extractOrCopyJar(inputPath, destPath) {
 
       // It's a ZIP containing a JAR
       return extractJarFromZip(inputPath, destPath);
-    } catch {
+    } catch (error) {
+      console.warn(
+        `Warning: Failed to inspect ZIP for JAR manifest, attempting extraction anyway: ${error.message}`,
+      );
       // Fallback: try extraction
       return extractJarFromZip(inputPath, destPath);
     }

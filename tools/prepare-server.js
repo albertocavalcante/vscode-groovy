@@ -2,9 +2,10 @@
  * Prepares the Groovy Language Server JAR
  * Priority order:
  * 1. Use explicitly provided local JAR (--local/GROOVY_LSP_LOCAL_JAR)
- * 2. Use existing server/groovy-lsp.jar if present (unless FORCE_DOWNLOAD=true)
- * 3. Copy from local groovy-lsp build if available and PREFER_LOCAL=true
- * 4. Download from GitHub releases (pinned, latest, nightly, or explicit tag)
+ * 2. Use explicitly provided URL (--url/GROOVY_LSP_URL)
+ * 3. Use existing server/groovy-lsp.jar if present (unless FORCE_DOWNLOAD=true)
+ * 4. Copy from local groovy-lsp build if available and PREFER_LOCAL=true
+ * 5. Download from GitHub releases (pinned, latest, nightly, or explicit tag)
  */
 
 const fs = require("node:fs");
@@ -380,7 +381,6 @@ async function downloadFromUrl(url, expectedChecksum) {
   const artifact = resolveGitHubArtifactDownload(url);
   const downloadUrl = artifact.downloadUrl;
   const isArtifactZip = artifact.isArtifactZip;
-  const needsExtraction = isArtifactZip;
 
   if (artifact.kind === "browser") {
     console.log("Detected GitHub Actions artifact URL, transforming...");
@@ -414,11 +414,11 @@ async function downloadFromUrl(url, expectedChecksum) {
       authToken,
     });
 
-    // Determine if we need to extract based on content-type or file inspection
+    // Determine if we need to extract based on artifact flag, content-type (if present), or file inspection
     const isZip =
-      needsExtraction ||
-      contentType.includes("application/zip") ||
-      contentType.includes("application/x-zip") ||
+      isArtifactZip ||
+      contentType?.includes("application/zip") ||
+      contentType?.includes("application/x-zip") ||
       isZipFile(tempFile);
 
     if (isZip) {
@@ -454,7 +454,15 @@ async function downloadFromUrl(url, expectedChecksum) {
 
     // Write version marker
     const urlObj = new URL(url);
-    writeInstalledVersion(`url:${urlObj.pathname.split("/").pop()}`);
+    const pathSegments = urlObj.pathname.split("/").filter(Boolean);
+    let markerId =
+      pathSegments.length > 0
+        ? pathSegments[pathSegments.length - 1]
+        : urlObj.hostname || "unknown";
+    if (markerId === "zip" && pathSegments.length >= 2) {
+      markerId = pathSegments[pathSegments.length - 2];
+    }
+    writeInstalledVersion(`url:${markerId}`);
 
     console.log(`✓ Downloaded and saved as ${CANONICAL_JAR_NAME}`);
   } finally {
@@ -867,6 +875,9 @@ Options:
   --force-download       Always download/copy even if a JAR already exists
   --print-release-tag    Print the pinned release tag and exit
   -h, --help             Show this help message
+
+Notes:
+  Precedence: --local > --url > existing bundled JAR > --prefer-local > GitHub download
 
 Environment:
   GROOVY_LSP_TAG, GROOVY_LSP_CHANNEL=nightly|release, GROOVY_LSP_LOCAL_JAR,
