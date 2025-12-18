@@ -139,6 +139,7 @@ export function buildServerSettingsMap(): Record<string, unknown> {
 
         'groovy.codenarc.enabled': config.get<boolean>('codenarc.enabled', true),
         'groovy.codenarc.autoDetect': config.get<boolean>('codenarc.autoDetect', true),
+        'groovy.format.enable': config.get<boolean>('format.enable', true),
 
         'jenkins.filePatterns': config.get<string[]>('jenkins.filePatterns', ['Jenkinsfile', 'vars/*.groovy']),
         'jenkins.sharedLibraries': config.get<JenkinsSharedLibrary[]>('jenkins.sharedLibraries', []),
