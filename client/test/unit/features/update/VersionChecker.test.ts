@@ -62,6 +62,39 @@ describe('VersionChecker', () => {
             ).to.equal(null);
         });
 
+        it('returns null for missing html_url', () => {
+            expect(
+                versionChecker.buildReleaseInfo({
+                    tag_name: 'v1.2.3',
+                    html_url: '',
+                    published_at: '2020-01-01T00:00:00Z',
+                    assets: [{ name: 'any.jar', browser_download_url: 'https://example.invalid/any.jar' }]
+                })
+            ).to.equal(null);
+        });
+
+        it('returns null for missing published_at', () => {
+            expect(
+                versionChecker.buildReleaseInfo({
+                    tag_name: 'v1.2.3',
+                    html_url: 'https://github.com/x/y/releases/tag/v1.2.3',
+                    published_at: '',
+                    assets: [{ name: 'any.jar', browser_download_url: 'https://example.invalid/any.jar' }]
+                })
+            ).to.equal(null);
+        });
+
+        it('returns null when no jar asset exists', () => {
+            expect(
+                versionChecker.buildReleaseInfo({
+                    tag_name: 'v1.2.3',
+                    html_url: 'https://github.com/x/y/releases/tag/v1.2.3',
+                    published_at: '2020-01-01T00:00:00Z',
+                    assets: [{ name: 'checksums.txt', browser_download_url: 'https://example.invalid/checksums.txt' }]
+                })
+            ).to.equal(null);
+        });
+
         it('selects a linux-amd64 jar when available', () => {
             const info = versionChecker.buildReleaseInfo({
                 tag_name: 'v1.2.3',
@@ -77,6 +110,8 @@ describe('VersionChecker', () => {
             expect(info).to.not.equal(null);
             expect(info?.tagName).to.equal('v1.2.3');
             expect(info?.version).to.equal('1.2.3');
+            expect(info?.releaseUrl).to.equal('https://github.com/x/y/releases/tag/v1.2.3');
+            expect(info?.publishedAt).to.equal('2020-01-01T00:00:00Z');
             expect(info?.downloadUrl).to.equal('https://example.invalid/linux.jar');
         });
 
@@ -91,6 +126,11 @@ describe('VersionChecker', () => {
                 ]
             });
 
+            expect(info).to.not.equal(null);
+            expect(info?.tagName).to.equal('v1.2.3');
+            expect(info?.version).to.equal('1.2.3');
+            expect(info?.releaseUrl).to.equal('https://github.com/x/y/releases/tag/v1.2.3');
+            expect(info?.publishedAt).to.equal('2020-01-01T00:00:00Z');
             expect(info?.downloadUrl).to.equal('https://example.invalid/main.jar');
         });
     });

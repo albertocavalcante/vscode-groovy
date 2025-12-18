@@ -25,6 +25,8 @@ export interface ReleaseInfo {
 }
 
 export class VersionChecker {
+    private static readonly PREFERRED_JAR_PLATFORM = 'linux-amd64';
+
     compareVersions(a: string, b: string): number {
         const aParts = this.parseVersion(a);
         const bParts = this.parseVersion(b);
@@ -47,7 +49,7 @@ export class VersionChecker {
         }
 
         const normalized = version.toLowerCase().trim();
-        if (normalized === 'local' || normalized === 'unknown' || normalized === '') {
+        if (['local', 'unknown', ''].includes(normalized)) {
             return false;
         }
 
@@ -55,7 +57,7 @@ export class VersionChecker {
     }
 
     buildReleaseInfo(releaseData: GitHubReleaseResponse): ReleaseInfo | null {
-        if (!releaseData?.tag_name) {
+        if (!releaseData?.tag_name || !releaseData.html_url || !releaseData.published_at) {
             return null;
         }
 
@@ -98,11 +100,11 @@ export class VersionChecker {
         if (!assets || assets.length === 0) return null;
 
         const preferred = assets.find(
-            (asset) => asset.name.endsWith('.jar') && asset.name.includes('linux-amd64')
+            (asset) =>
+                asset.name.endsWith('.jar') && asset.name.includes(VersionChecker.PREFERRED_JAR_PLATFORM)
         );
         if (preferred) return preferred;
 
         return assets.find((asset) => asset.name.endsWith('.jar')) || null;
     }
 }
-
