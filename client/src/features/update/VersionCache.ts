@@ -22,11 +22,7 @@ export class VersionCache {
 
     getCachedRelease(): CachedRelease | null {
         const cached = this.globalState.get<CachedRelease>(CACHE_KEY);
-        if (!cached) {
-            return null;
-        }
-
-        if (this.isExpired(cached)) {
+        if (!cached || this.isExpired(cached)) {
             return null;
         }
 
@@ -48,8 +44,7 @@ export class VersionCache {
         await this.globalState.update(CACHE_KEY, undefined);
     }
 
-    isExpired(cached: CachedRelease): boolean {
+    private isExpired(cached: CachedRelease): boolean {
         return Date.now() >= cached.expiresAt;
     }
 }
-

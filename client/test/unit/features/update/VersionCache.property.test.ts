@@ -1,34 +1,8 @@
 import { expect } from 'chai';
 import * as fc from 'fast-check';
 import * as sinon from 'sinon';
-import type { Memento } from 'vscode';
 import { VersionCache } from '../../../../src/features/update/VersionCache';
-import type { ReleaseInfo } from '../../../../src/features/update/VersionChecker';
-
-function createMementoStub(initial: Record<string, unknown> = {}): Memento {
-    const store = new Map<string, unknown>(Object.entries(initial));
-
-    return {
-        get: (key: string) => store.get(key),
-        update: async (key: string, value: unknown) => {
-            if (value === undefined) {
-                store.delete(key);
-                return;
-            }
-            store.set(key, value);
-        }
-    } as unknown as Memento;
-}
-
-function sampleRelease(version: string): ReleaseInfo {
-    return {
-        tagName: `v${version}`,
-        version,
-        releaseUrl: `https://github.com/x/y/releases/tag/v${version}`,
-        downloadUrl: `https://example.invalid/groovy-lsp-${version}.jar`,
-        publishedAt: '2020-01-01T00:00:00Z'
-    };
-}
+import { createMementoStub, sampleRelease } from './testUtils';
 
 describe('VersionCache - Property Tests', () => {
     let clock: sinon.SinonFakeTimers;
@@ -69,4 +43,3 @@ describe('VersionCache - Property Tests', () => {
         );
     });
 });
-
