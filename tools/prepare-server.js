@@ -23,8 +23,7 @@ const {
 } = require("./github-releases.js");
 const {
   resolveGitHubToken,
-  isGitHubArtifactUrl,
-  transformArtifactUrl,
+  resolveGitHubArtifactDownload,
 } = require("./github-token.js");
 
 const SERVER_DIR = path.join(__dirname, "..", "server");
@@ -378,35 +377,18 @@ async function verifyChecksum(filePath, expectedHash) {
  * @param {string|null} expectedChecksum - Optional SHA256 checksum
  */
 async function downloadFromUrl(url, expectedChecksum) {
-  let downloadUrl = url;
-  let needsExtraction = false;
-  let isArtifactZip = false;
+  const artifact = resolveGitHubArtifactDownload(url);
+  const downloadUrl = artifact.downloadUrl;
+  const isArtifactZip = artifact.isArtifactZip;
+  const needsExtraction = isArtifactZip;
 
-  // Transform GitHub artifact browser URLs to API URLs
-  if (isGitHubArtifactUrl(url)) {
+  if (artifact.kind === "browser") {
     console.log("Detected GitHub Actions artifact URL, transforming...");
-    downloadUrl = transformArtifactUrl(url);
-    needsExtraction = true; // Artifacts are always ZIPs
-    isArtifactZip = true;
     console.log(`API URL: ${downloadUrl}`);
   }
 
-  // Resolve auth token
+  // Resolve auth token (required for GitHub Actions artifact downloads)
   const authToken = resolveGitHubToken();
-  // If the user passed the API zip URL directly, treat it as an artifact ZIP.
-  try {
-    const parsed = new URL(downloadUrl);
-    if (
-      parsed.hostname === "api.github.com" &&
-      parsed.pathname.includes("/actions/artifacts/") &&
-      parsed.pathname.endsWith("/zip")
-    ) {
-      isArtifactZip = true;
-      needsExtraction = true;
-    }
-  } catch {
-    // ignore URL parsing errors; they'll be surfaced by downloadToFile()
-  }
 
   if (isArtifactZip && !authToken) {
     throw new Error(

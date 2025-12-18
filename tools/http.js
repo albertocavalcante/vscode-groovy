@@ -71,6 +71,28 @@ function buildHeadersForUrl(urlObj, { userAgent, authToken } = {}) {
   return headers;
 }
 
+async function followRedirects(url, maxRedirects, actionLabel, once) {
+  let currentUrl = url;
+  for (
+    let redirectCount = 0;
+    redirectCount <= maxRedirects;
+    redirectCount += 1
+  ) {
+    const urlObj = new URL(currentUrl);
+    // eslint-disable-next-line no-await-in-loop
+    const result = await once(urlObj);
+
+    if (result.redirectUrl) {
+      currentUrl = result.redirectUrl;
+      continue;
+    }
+
+    return { ...result, finalUrl: currentUrl };
+  }
+
+  throw new Error(`Too many redirects when ${actionLabel} ${url}`);
+}
+
 async function requestWithRedirects(
   url,
   {
@@ -81,15 +103,12 @@ async function requestWithRedirects(
     userAgent = DEFAULT_USER_AGENT,
   } = {},
 ) {
-  let currentUrl = url;
-  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-    const urlObj = new URL(currentUrl);
+  return await followRedirects(url, maxRedirects, "requesting", async (urlObj) => {
     const requestHeaders = {
       ...buildHeadersForUrl(urlObj, { userAgent, authToken }),
       ...headers,
     };
 
-    // eslint-disable-next-line no-await-in-loop
     const response = await requestOnce(urlObj, requestHeaders, timeoutMs);
 
     if (
@@ -97,14 +116,13 @@ async function requestWithRedirects(
       response.statusCode < 400 &&
       response.headers.location
     ) {
-      currentUrl = new URL(response.headers.location, urlObj).toString();
-      continue;
+      return {
+        redirectUrl: new URL(response.headers.location, urlObj).toString(),
+      };
     }
 
-    return { ...response, finalUrl: currentUrl };
-  }
-
-  throw new Error(`Too many redirects when requesting ${url}`);
+    return response;
+  });
 }
 
 function requestOnce(urlObj, headers, timeoutMs) {
@@ -186,26 +204,21 @@ async function downloadToFile(
     userAgent = DEFAULT_USER_AGENT,
   } = {},
 ) {
-  let currentUrl = url;
-  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-    const urlObj = new URL(currentUrl);
-    const requestHeaders = {
-      ...buildHeadersForUrl(urlObj, { userAgent, authToken }),
-      ...headers,
-    };
+  const result = await followRedirects(
+    url,
+    maxRedirects,
+    "downloading",
+    async (urlObj) => {
+      const requestHeaders = {
+        ...buildHeadersForUrl(urlObj, { userAgent, authToken }),
+        ...headers,
+      };
 
-    // eslint-disable-next-line no-await-in-loop
-    const result = await downloadOnce(urlObj, filePath, requestHeaders, timeoutMs);
+      return await downloadOnce(urlObj, filePath, requestHeaders, timeoutMs);
+    },
+  );
 
-    if (result.redirectUrl) {
-      currentUrl = result.redirectUrl;
-      continue;
-    }
-
-    return { contentType: result.contentType, finalUrl: currentUrl };
-  }
-
-  throw new Error(`Too many redirects when downloading ${url}`);
+  return { contentType: result.contentType, finalUrl: result.finalUrl };
 }
 
 function downloadOnce(urlObj, filePath, headers, timeoutMs) {

@@ -3,7 +3,38 @@
  * Resolves authentication token from environment variables or gh CLI.
  */
 
+const fs = require("node:fs");
+const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+
+function resolveGhCliPath() {
+  const explicit = process.env.GH_CLI_PATH;
+  if (explicit) {
+    return explicit;
+  }
+
+  if (process.platform === "win32") {
+    const programFiles = process.env.ProgramFiles;
+    const programFilesX86 = process.env["ProgramFiles(x86)"];
+    const candidates = [
+      programFiles ? path.join(programFiles, "GitHub CLI", "gh.exe") : null,
+      programFilesX86
+        ? path.join(programFilesX86, "GitHub CLI", "gh.exe")
+        : null,
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  const candidates = ["/usr/bin/gh", "/usr/local/bin/gh", "/opt/homebrew/bin/gh"];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
 
 /**
  * Resolves GitHub authentication token from various sources.
@@ -21,8 +52,13 @@ function resolveGitHubToken() {
   }
 
   // 2. Try gh CLI auth token (fallback for local dev)
+  const ghPath = resolveGhCliPath();
+  if (!ghPath) {
+    return null;
+  }
+
   try {
-    const result = spawnSync("gh", ["auth", "token"], {
+    const result = spawnSync(ghPath, ["auth", "token"], {
       encoding: "utf8",
       timeout: 5000,
       stdio: ["ignore", "pipe", "pipe"],
@@ -79,15 +115,53 @@ function requiresGitHubAuth(url) {
  * @returns {boolean}
  */
 function isGitHubArtifactUrl(url) {
+  return resolveGitHubArtifactDownload(url).isArtifactZip;
+}
+
+/**
+ * Resolves a GitHub Actions artifact URL (browser or API) into a direct download URL.
+ *
+ * Browser URL format:
+ *   https://github.com/{owner}/{repo}/actions/runs/{run_id}/artifacts/{artifact_id}
+ *
+ * API URL format:
+ *   https://api.github.com/repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip
+ *
+ * @param {string} url
+ * @returns {{downloadUrl: string, isArtifactZip: boolean, kind: 'browser' | 'api' | null}}
+ */
+function resolveGitHubArtifactDownload(url) {
   try {
     const parsed = new URL(url);
-    return (
-      parsed.hostname === "github.com" &&
-      parsed.pathname.includes("/actions/runs/") &&
-      parsed.pathname.includes("/artifacts/")
-    );
+    if (parsed.hostname === "github.com") {
+      const match = parsed.pathname.match(
+        /^\/([^/]+)\/([^/]+)\/actions\/runs\/\d+\/artifacts\/(\d+)(?:\/.*)?$/,
+      );
+      if (!match) {
+        return { downloadUrl: url, isArtifactZip: false, kind: null };
+      }
+      const [, owner, repo, artifactId] = match;
+      return {
+        downloadUrl: `https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${artifactId}/zip`,
+        isArtifactZip: true,
+        kind: "browser",
+      };
+    }
+
+    if (parsed.hostname === "api.github.com") {
+      const match = parsed.pathname.match(
+        /^\/repos\/([^/]+)\/([^/]+)\/actions\/artifacts\/(\d+)\/zip$/,
+      );
+      if (!match) {
+        return { downloadUrl: url, isArtifactZip: false, kind: null };
+      }
+
+      return { downloadUrl: parsed.toString(), isArtifactZip: true, kind: "api" };
+    }
+
+    return { downloadUrl: url, isArtifactZip: false, kind: null };
   } catch {
-    return false;
+    return { downloadUrl: url, isArtifactZip: false, kind: null };
   }
 }
 
@@ -104,28 +178,19 @@ function isGitHubArtifactUrl(url) {
  * @returns {string} API download URL
  */
 function transformArtifactUrl(browserUrl) {
-  const parsed = new URL(browserUrl);
-  const pathParts = parsed.pathname.split("/").filter(Boolean);
-
-  // Expected: [owner, repo, 'actions', 'runs', run_id, 'artifacts', artifact_id]
-  const ownerIndex = 0;
-  const repoIndex = 1;
-  const artifactIdIndex = pathParts.indexOf("artifacts") + 1;
-
-  if (artifactIdIndex < 1 || artifactIdIndex >= pathParts.length) {
+  const { downloadUrl, isArtifactZip, kind } =
+    resolveGitHubArtifactDownload(browserUrl);
+  if (!isArtifactZip || kind !== "browser") {
     throw new Error(`Invalid GitHub artifact URL format: ${browserUrl}`);
   }
-
-  const owner = pathParts[ownerIndex];
-  const repo = pathParts[repoIndex];
-  const artifactId = pathParts[artifactIdIndex];
-
-  return `https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${artifactId}/zip`;
+  return downloadUrl;
 }
 
 module.exports = {
   resolveGitHubToken,
+  resolveGhCliPath,
   requiresGitHubAuth,
   isGitHubArtifactUrl,
+  resolveGitHubArtifactDownload,
   transformArtifactUrl,
 };
