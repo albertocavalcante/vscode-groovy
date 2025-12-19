@@ -12,6 +12,9 @@ import { VersionChecker } from './VersionChecker';
  * - `checkForUpdateNow()`: Force-check (for manual "Check Now" commands)
  */
 export class UpdateChecker {
+	private pendingAutoCheck: Promise<UpdateCheckResult> | null = null;
+	private pendingManualCheck: Promise<UpdateCheckResult> | null = null;
+
 	constructor(
 		private readonly currentVersion: string,
 		private readonly cache: VersionCache,
@@ -26,9 +29,31 @@ export class UpdateChecker {
 	 * Returns cached result if valid and not expired. Fetches from network if
 	 * cache miss/expired. Clears cache if provider returns null.
 	 *
+	 * Deduplicates concurrent calls - if a check is already in progress, returns
+	 * the same promise to avoid duplicate network requests.
+	 *
 	 * @returns Update check result
 	 */
 	async checkForUpdate(): Promise<UpdateCheckResult> {
+		// Return existing pending check if one is in progress
+		if (this.pendingAutoCheck) {
+			return this.pendingAutoCheck;
+		}
+
+		// Start new check
+		this.pendingAutoCheck = this.performAutoCheck();
+
+		try {
+			return await this.pendingAutoCheck;
+		} finally {
+			this.pendingAutoCheck = null;
+		}
+	}
+
+	/**
+	 * Internal implementation of auto check logic.
+	 */
+	private async performAutoCheck(): Promise<UpdateCheckResult> {
 		try {
 			// Check cache first
 			const cached = this.cache.getCachedRelease();
@@ -111,9 +136,31 @@ export class UpdateChecker {
 	 * Always fetches from network, bypassing cache. Preserves cache on failure
 	 * (user wants to see last good data). Updates cache on successful fetch.
 	 *
+	 * Deduplicates concurrent calls - if a manual check is already in progress,
+	 * returns the same promise to avoid duplicate network requests.
+	 *
 	 * @returns Update check result
 	 */
 	async checkForUpdateNow(): Promise<UpdateCheckResult> {
+		// Return existing pending check if one is in progress
+		if (this.pendingManualCheck) {
+			return this.pendingManualCheck;
+		}
+
+		// Start new check
+		this.pendingManualCheck = this.performManualCheck();
+
+		try {
+			return await this.pendingManualCheck;
+		} finally {
+			this.pendingManualCheck = null;
+		}
+	}
+
+	/**
+	 * Internal implementation of manual check logic.
+	 */
+	private async performManualCheck(): Promise<UpdateCheckResult> {
 		try {
 			// Always fetch from network, bypass cache
 			const latestRelease = await this.provider.fetchLatestRelease();

@@ -337,6 +337,70 @@ describe('UpdateChecker', () => {
 		});
 	});
 
+	describe('Concurrent calls', () => {
+		it('should deduplicate concurrent checkForUpdate calls', async () => {
+			const memento = createMementoStub();
+			const cache = new VersionCache(memento);
+			const clockStub = createClockStub(1000000);
+
+			let providerCallCount = 0;
+			const provider = {
+				fetchLatestRelease: async () => {
+					providerCallCount++;
+					return sampleRelease('2.0.0');
+				}
+			};
+
+			const checker = new UpdateChecker('1.0.0', cache, provider, clockStub);
+
+			// Call checkForUpdate three times concurrently
+			const [result1, result2, result3] = await Promise.all([
+				checker.checkForUpdate(),
+				checker.checkForUpdate(),
+				checker.checkForUpdate()
+			]);
+
+			// Should only call provider once, not three times
+			assert.strictEqual(providerCallCount, 1, 'Provider should only be called once');
+
+			// All results should be the same
+			assert.strictEqual(result1.latestRelease?.version, '2.0.0');
+			assert.strictEqual(result2.latestRelease?.version, '2.0.0');
+			assert.strictEqual(result3.latestRelease?.version, '2.0.0');
+		});
+
+		it('should deduplicate concurrent checkForUpdateNow calls', async () => {
+			const memento = createMementoStub();
+			const cache = new VersionCache(memento);
+			const clockStub = createClockStub(1000000);
+
+			let providerCallCount = 0;
+			const provider = {
+				fetchLatestRelease: async () => {
+					providerCallCount++;
+					return sampleRelease('2.0.0');
+				}
+			};
+
+			const checker = new UpdateChecker('1.0.0', cache, provider, clockStub);
+
+			// Call checkForUpdateNow three times concurrently
+			const [result1, result2, result3] = await Promise.all([
+				checker.checkForUpdateNow(),
+				checker.checkForUpdateNow(),
+				checker.checkForUpdateNow()
+			]);
+
+			// Should only call provider once, not three times
+			assert.strictEqual(providerCallCount, 1, 'Provider should only be called once');
+
+			// All results should be the same
+			assert.strictEqual(result1.latestRelease?.version, '2.0.0');
+			assert.strictEqual(result2.latestRelease?.version, '2.0.0');
+			assert.strictEqual(result3.latestRelease?.version, '2.0.0');
+		});
+	});
+
 	describe('Error handling', () => {
 		it('should return error status when provider throws exception (auto check)', async () => {
 			const memento = createMementoStub();
