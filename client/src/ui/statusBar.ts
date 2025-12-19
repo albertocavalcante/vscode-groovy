@@ -21,6 +21,13 @@ let currentClient: LanguageClient | undefined;
 let currentServerState: ServerState = 'stopped';
 let currentProgressMessage: string | undefined;
 let progressDisposable: vscode.Disposable | undefined;
+let stateChangeDisposable: vscode.Disposable | undefined;
+
+/**
+ * Tracks active progress operations to handle concurrent tasks.
+ * Only transitions to 'ready' when all active tasks complete.
+ */
+let activeProgressCount = 0;
 
 export function registerStatusBarItem(client?: LanguageClient) {
     if (statusBarItem) {
@@ -28,6 +35,9 @@ export function registerStatusBarItem(client?: LanguageClient) {
     }
     if (progressDisposable) {
         progressDisposable.dispose();
+    }
+    if (stateChangeDisposable) {
+        stateChangeDisposable.dispose();
     }
 
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -50,6 +60,11 @@ export function registerStatusBarItem(client?: LanguageClient) {
                 progressDisposable.dispose();
                 progressDisposable = undefined;
             }
+            if (stateChangeDisposable) {
+                stateChangeDisposable.dispose();
+                stateChangeDisposable = undefined;
+            }
+            activeProgressCount = 0;
         }
     };
 }
@@ -60,14 +75,19 @@ export function setClient(client: LanguageClient | undefined) {
         progressDisposable.dispose();
         progressDisposable = undefined;
     }
+    if (stateChangeDisposable) {
+        stateChangeDisposable.dispose();
+        stateChangeDisposable = undefined;
+    }
 
     currentClient = client;
     currentServerState = 'stopped';
     currentProgressMessage = undefined;
+    activeProgressCount = 0;
 
     if (currentClient) {
         // Listen for state changes
-        currentClient.onDidChangeState((event) => {
+        stateChangeDisposable = currentClient.onDidChangeState((event) => {
             updateServerStateFromClientState(event.newState);
             updateView();
         });
@@ -102,6 +122,7 @@ function setupProgressHandling(client: LanguageClient): vscode.Disposable {
 /**
  * Handles a progress notification from the LSP.
  * Parses the message to infer server state.
+ * Tracks active progress tokens to handle concurrent tasks.
  */
 function handleProgressNotification(value: ProgressValue) {
     if (!value) return;
@@ -112,6 +133,7 @@ function handleProgressNotification(value: ProgressValue) {
 
     if (kind === 'begin') {
         // Starting a new progress operation
+        activeProgressCount++;
         currentProgressMessage = value.message || value.title;
         inferStateFromMessage(message || title);
     } else if (kind === 'report') {
@@ -119,11 +141,15 @@ function handleProgressNotification(value: ProgressValue) {
         currentProgressMessage = value.message;
         inferStateFromMessage(message);
     } else if (kind === 'end') {
-        // Progress complete
-        currentProgressMessage = undefined;
-        // If we were resolving deps or indexing, we're now ready
-        if (currentServerState === 'resolving-deps' || currentServerState === 'indexing') {
-            currentServerState = 'ready';
+        // Progress complete - decrement counter
+        activeProgressCount = Math.max(0, activeProgressCount - 1);
+
+        // Only transition to 'ready' if ALL progress tasks are complete
+        if (activeProgressCount === 0) {
+            currentProgressMessage = undefined;
+            if (currentServerState === 'resolving-deps' || currentServerState === 'indexing') {
+                currentServerState = 'ready';
+            }
         }
     }
 
@@ -132,9 +158,14 @@ function handleProgressNotification(value: ProgressValue) {
 
 /**
  * Infers server state from progress message content.
+ * Checks for error conditions FIRST to ensure they're not masked.
  */
 function inferStateFromMessage(message: string) {
-    if (message.includes('resolving') ||
+    // Check for errors FIRST - these should not be masked by other keywords
+    if (message.includes('failed') ||
+        message.includes('error')) {
+        currentServerState = 'degraded';
+    } else if (message.includes('resolving') ||
         message.includes('gradle') ||
         message.includes('maven') ||
         message.includes('dependencies') ||
@@ -148,9 +179,6 @@ function inferStateFromMessage(message: string) {
         message.includes('complete') ||
         message.includes('loaded')) {
         currentServerState = 'ready';
-    } else if (message.includes('failed') ||
-        message.includes('error')) {
-        currentServerState = 'degraded';
     }
 }
 
@@ -168,10 +196,12 @@ function updateServerStateFromClientState(state: State) {
         case State.Starting:
             currentServerState = 'starting';
             currentProgressMessage = undefined;
+            activeProgressCount = 0;
             break;
         default:
             currentServerState = 'stopped';
             currentProgressMessage = undefined;
+            activeProgressCount = 0;
     }
 }
 
