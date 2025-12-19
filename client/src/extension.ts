@@ -13,9 +13,6 @@ import { registerFormatting } from './features/formatting/formatter';
 import { replService } from './features/repl';
 import { registerGradleFeatures } from './features/gradle';
 
-// Extension version for update checking
-const EXTENSION_VERSION = '0.1.0-alpha.0';
-
 /**
  * Activates the extension
  */
@@ -47,8 +44,10 @@ export async function activate(context: ExtensionContext) {
         registerFormatting(context);
         registerGradleFeatures(context);
 
-        // Initialize update service and check for updates if enabled
-        const updateService = initializeUpdateService(context, EXTENSION_VERSION);
+        // Initialize update service for LSP version checking
+        // Uses extension version from package.json (which bundles the LSP)
+        const extensionVersion = context.extension.packageJSON.version as string;
+        const updateService = initializeUpdateService(context, extensionVersion);
         const updateConfig = getUpdateConfiguration();
         if (updateConfig.checkOnStartup) {
             // Run async, don't block activation

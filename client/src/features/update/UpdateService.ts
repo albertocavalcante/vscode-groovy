@@ -113,25 +113,28 @@ export class UpdateService {
     }
 
     /**
-     * Shows update available notification with actions.
-     */
+ * Shows update available notification with actions.
+ */
     private async showUpdateAvailable(result: UpdateCheckResult): Promise<void> {
         const latestVersion = result.latestRelease?.version || 'unknown';
         const releaseUrl = result.latestRelease?.releaseUrl;
         const downloadUrl = result.latestRelease?.downloadUrl;
 
+        const openReleaseAction = 'Open Release';
+        const downloadAction = 'Download';
+
         const actions: string[] = [];
-        if (releaseUrl) actions.push('Open Release');
-        if (downloadUrl) actions.push('Download');
+        if (releaseUrl) actions.push(openReleaseAction);
+        if (downloadUrl) actions.push(downloadAction);
 
         const action = await window.showInformationMessage(
             `Groovy Language Server ${latestVersion} is available! (current: ${result.currentVersion})`,
             ...actions
         );
 
-        if (action === 'Open Release' && releaseUrl) {
+        if (action === openReleaseAction && releaseUrl) {
             await env.openExternal(Uri.parse(releaseUrl));
-        } else if (action === 'Download' && downloadUrl) {
+        } else if (action === downloadAction && downloadUrl) {
             await env.openExternal(Uri.parse(downloadUrl));
         }
     }
