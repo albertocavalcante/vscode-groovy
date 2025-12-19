@@ -12,16 +12,13 @@ import { VersionChecker } from './VersionChecker';
  * - `checkForUpdateNow()`: Force-check (for manual "Check Now" commands)
  */
 export class UpdateChecker {
-	private readonly versionChecker: VersionChecker;
-
 	constructor(
 		private readonly currentVersion: string,
 		private readonly cache: VersionCache,
 		private readonly provider: ReleaseProvider,
-		private readonly clock: Clock
-	) {
-		this.versionChecker = new VersionChecker();
-	}
+		private readonly clock: Clock,
+		private readonly versionChecker: VersionChecker = new VersionChecker()
+	) {}
 
 	/**
 	 * Checks for updates with cache-first strategy.
