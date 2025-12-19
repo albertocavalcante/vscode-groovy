@@ -93,6 +93,7 @@ describe('UpdateChecker', () => {
 
 			assert.strictEqual(providerCalled, true, 'Provider should be called when cache is expired');
 			assert.strictEqual(result.source, 'network');
+			assert.strictEqual(result.latestRelease?.version, '1.6.0');
 		});
 
 		it('should fetch from network when cache is empty', async () => {
@@ -363,10 +364,10 @@ describe('UpdateChecker', () => {
 			// Should only call provider once, not three times
 			assert.strictEqual(providerCallCount, 1, 'Provider should only be called once');
 
-			// All results should be the same
+			// All results should be the same object (deduplication)
+			assert.strictEqual(result1, result2, 'Result 1 and 2 should be the same object');
+			assert.strictEqual(result2, result3, 'Result 2 and 3 should be the same object');
 			assert.strictEqual(result1.latestRelease?.version, '2.0.0');
-			assert.strictEqual(result2.latestRelease?.version, '2.0.0');
-			assert.strictEqual(result3.latestRelease?.version, '2.0.0');
 		});
 
 		it('should deduplicate concurrent checkForUpdateNow calls', async () => {
@@ -394,10 +395,10 @@ describe('UpdateChecker', () => {
 			// Should only call provider once, not three times
 			assert.strictEqual(providerCallCount, 1, 'Provider should only be called once');
 
-			// All results should be the same
+			// All results should be the same object (deduplication)
+			assert.strictEqual(result1, result2, 'Result 1 and 2 should be the same object');
+			assert.strictEqual(result2, result3, 'Result 2 and 3 should be the same object');
 			assert.strictEqual(result1.latestRelease?.version, '2.0.0');
-			assert.strictEqual(result2.latestRelease?.version, '2.0.0');
-			assert.strictEqual(result3.latestRelease?.version, '2.0.0');
 		});
 	});
 

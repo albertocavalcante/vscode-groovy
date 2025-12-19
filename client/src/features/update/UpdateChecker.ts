@@ -21,13 +21,13 @@ export class UpdateChecker {
 		private readonly provider: ReleaseProvider,
 		private readonly clock: Clock,
 		private readonly versionChecker: VersionChecker = new VersionChecker()
-	) {}
+	) { }
 
 	/**
 	 * Checks for updates with cache-first strategy.
 	 *
 	 * Returns cached result if valid and not expired. Fetches from network if
-	 * cache miss/expired. Clears cache if provider returns null.
+	 * cache miss/expired. Clears cache if the provider returns null or throws an error.
 	 *
 	 * Deduplicates concurrent calls - if a check is already in progress, returns
 	 * the same promise to avoid duplicate network requests.
@@ -54,26 +54,35 @@ export class UpdateChecker {
 	 * Internal implementation of auto check logic.
 	 */
 	private async performAutoCheck(): Promise<UpdateCheckResult> {
-		try {
-			// Check cache first
-			const cached = this.cache.getCachedRelease();
-			if (cached) {
-				return {
-					status: 'cache-hit',
-					currentVersion: this.currentVersion,
-					latestRelease: cached.release,
-					checkedAt: cached.checkedAt,
-					source: 'cache'
-				};
-			}
+		// Check cache first
+		const cached = this.cache.getCachedRelease();
+		if (cached) {
+			return {
+				status: 'cache-hit',
+				currentVersion: this.currentVersion,
+				latestRelease: cached.release,
+				checkedAt: cached.checkedAt,
+				source: 'cache'
+			};
+		}
 
-			// Cache miss or expired - fetch from network
+		// Cache miss or expired - fetch from network (clear cache on failure)
+		return this.performNetworkCheck(true);
+	}
+
+	/**
+	 * Internal implementation of network fetch logic.
+	 * @param clearCacheOnFailure If true, clears cache on null/error (auto check behavior).
+	 *                            If false, preserves cache (manual check behavior).
+	 */
+	private async performNetworkCheck(clearCacheOnFailure: boolean): Promise<UpdateCheckResult> {
+		try {
 			const latestRelease = await this.provider.fetchLatestRelease();
 
 			if (latestRelease === null) {
-				// Clear cache when provider fails (don't persist stale data)
-				await this.cache.clear();
-
+				if (clearCacheOnFailure) {
+					await this.cache.clear();
+				}
 				return {
 					status: 'unknown',
 					currentVersion: this.currentVersion,
@@ -97,9 +106,9 @@ export class UpdateChecker {
 				source: 'network'
 			};
 		} catch (error) {
-			// Clear cache on error (don't persist stale data)
-			await this.cache.clear();
-
+			if (clearCacheOnFailure) {
+				await this.cache.clear();
+			}
 			return {
 				status: 'error',
 				currentVersion: this.currentVersion,
@@ -159,47 +168,9 @@ export class UpdateChecker {
 
 	/**
 	 * Internal implementation of manual check logic.
+	 * Bypasses cache, preserves cache on failure (user wants last good data).
 	 */
 	private async performManualCheck(): Promise<UpdateCheckResult> {
-		try {
-			// Always fetch from network, bypass cache
-			const latestRelease = await this.provider.fetchLatestRelease();
-
-			if (latestRelease === null) {
-				// For manual checks, preserve cache (don't clear)
-				// User wants to see last known good data
-				return {
-					status: 'unknown',
-					currentVersion: this.currentVersion,
-					latestRelease: null,
-					checkedAt: this.clock.now(),
-					source: 'network'
-				};
-			}
-
-			// Update cache with fresh data
-			await this.cache.setCachedRelease(latestRelease);
-
-			// Compare versions
-			const status = this.determineStatus(latestRelease.version);
-
-			return {
-				status,
-				currentVersion: this.currentVersion,
-				latestRelease,
-				checkedAt: this.clock.now(),
-				source: 'network'
-			};
-		} catch (error) {
-			// For manual checks, preserve cache (user wants last good data)
-			return {
-				status: 'error',
-				currentVersion: this.currentVersion,
-				latestRelease: null,
-				checkedAt: this.clock.now(),
-				source: 'network',
-				error: error instanceof Error ? error.message : String(error)
-			};
-		}
+		return this.performNetworkCheck(false);
 	}
 }
