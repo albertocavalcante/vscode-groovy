@@ -17,5 +17,7 @@ export function registerTestingFeatures(
   const client = getClient();
   const testService = client ? new TestService(client) : undefined;
 
-  new GroovyTestController(context, executionService, testService);
+  // The controller registers itself with context.subscriptions in constructor
+  const _controller = new GroovyTestController(context, executionService, testService);
+  void _controller; // Side-effect instantiation - controller self-registers
 }
