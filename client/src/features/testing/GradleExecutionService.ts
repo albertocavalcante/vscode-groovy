@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
 
 export class GradleExecutionService {
-  constructor(private readonly logger: vscode.OutputChannel) {}
+  constructor(private readonly logger: vscode.OutputChannel) { }
 
   public async runTests(
-    request: vscode.TestRunRequest,
-    token: vscode.CancellationToken,
+    _request: vscode.TestRunRequest,
+    _token: vscode.CancellationToken,
   ): Promise<void> {
     this.logger.appendLine(
       "GradleExecutionService: runTests requested (not implemented)",
@@ -14,8 +14,8 @@ export class GradleExecutionService {
   }
 
   public async debugTests(
-    request: vscode.TestRunRequest,
-    token: vscode.CancellationToken,
+    _request: vscode.TestRunRequest,
+    _token: vscode.CancellationToken,
   ): Promise<void> {
     this.logger.appendLine(
       "GradleExecutionService: debugTests requested (not implemented)",

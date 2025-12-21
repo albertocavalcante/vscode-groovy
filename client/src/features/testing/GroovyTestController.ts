@@ -5,7 +5,7 @@ export class GroovyTestController {
   private readonly ctrl: vscode.TestController;
 
   constructor(
-    private readonly context: vscode.ExtensionContext,
+    context: vscode.ExtensionContext,
     private readonly executionService: GradleExecutionService,
   ) {
     this.ctrl = vscode.tests.createTestController(
