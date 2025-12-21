@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 
 suite('Extension Test Suite', () => {
-    vscode.window.showInformationMessage('Start all tests.');
+    console.log('Start all tests.');
 
     test('Extension should be present', () => {
         const extension = vscode.extensions.getExtension('albertocavalcante.vscode-groovy');
@@ -11,10 +11,9 @@ suite('Extension Test Suite', () => {
 
     test('Extension should activate', async () => {
         const extension = vscode.extensions.getExtension('albertocavalcante.vscode-groovy');
-        if (extension) {
-            await extension.activate();
-            assert.ok(extension.isActive, 'Extension should be active');
-        }
+        assert.ok(extension, 'Extension should be present');
+        await extension.activate();
+        assert.ok(extension.isActive, 'Extension should be active');
     });
 
     test('Should register all Groovy commands', async () => {
@@ -41,8 +40,8 @@ suite('Extension Test Suite', () => {
 
     test('Configuration should have correct structure', () => {
         const config = vscode.workspace.getConfiguration('groovy');
-        assert.doesNotThrow(() => config.get('java.home'), 'Should have java.home configuration');
-        assert.doesNotThrow(() => config.get('trace.server'), 'Should have trace.server configuration');
-        assert.doesNotThrow(() => config.get('compilation.mode'), 'Should have compilation.mode configuration');
+        assert.ok(config.has('java.home'), 'Should have java.home configuration');
+        assert.ok(config.has('trace.server'), 'Should have trace.server configuration');
+        assert.ok(config.has('compilation.mode'), 'Should have compilation.mode configuration');
     });
 });
