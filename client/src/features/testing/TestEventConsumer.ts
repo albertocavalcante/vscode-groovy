@@ -110,6 +110,14 @@ export class TestEventConsumer {
             case 'SKIPPED':
                 this.run.skipped(item);
                 break;
+
+            default:
+                // Unknown result type, treat as error
+                this.run.errored(
+                    item,
+                    new vscode.TestMessage(`Unknown test result: ${event.result}`),
+                );
+                break;
         }
     }
 }

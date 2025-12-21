@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
 import { TestEventConsumer } from './TestEventConsumer';
@@ -89,6 +90,12 @@ export class GradleExecutionService {
       const gradleWrapper =
         process.platform === 'win32' ? 'gradlew.bat' : 'gradlew';
       const gradleCmd = path.join(cwd, gradleWrapper);
+
+      // Verify gradlew exists
+      if (!fs.existsSync(gradleCmd)) {
+        reject(new Error(`Gradle wrapper not found: ${gradleCmd}`));
+        return;
+      }
 
       const args = [
         '--init-script',
