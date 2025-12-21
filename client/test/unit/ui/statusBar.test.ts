@@ -357,6 +357,8 @@ describe('StatusBar', () => {
             stateChangeHandler({ newState: mockLanguageClient.State.Stopped });
 
             assert.include(statusBarItemStub.text, '$(stop)');
+            assert.isDefined(statusBarItemStub.backgroundColor);
+            assert.equal(statusBarItemStub.backgroundColor.id, 'statusBarItem.errorBackground');
         });
 
         it('should preserve granular state when transitioning to Running', () => {
@@ -423,6 +425,9 @@ describe('StatusBar', () => {
 
             const tooltip = statusBarItemStub.tooltip;
             assert.isDefined(tooltip);
+            assert.isTrue(tooltip.isTrusted);
+            assert.isTrue(tooltip.supportThemeIcons);
+            assert.isTrue(tooltip.supportHtml);
             assert.include(tooltip.value, 'ready');
         });
 
