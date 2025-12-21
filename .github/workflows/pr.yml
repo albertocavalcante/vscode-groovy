@@ -22,6 +22,8 @@ jobs:
         run: npm ci
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Explicitly enable server prep to ensure JAR is downloaded for tests
+          SKIP_PREPARE_SERVER: false
 
       - name: Validate code quality
         run: |
