@@ -85,8 +85,10 @@ export class GradleExecutionService {
     token: vscode.CancellationToken,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const gradleCmd =
-        process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+      // Use absolute path to avoid shell execution
+      const gradleWrapper =
+        process.platform === 'win32' ? 'gradlew.bat' : 'gradlew';
+      const gradleCmd = path.join(cwd, gradleWrapper);
 
       const args = [
         '--init-script',
@@ -98,9 +100,10 @@ export class GradleExecutionService {
 
       this.logger.appendLine(`Running: ${gradleCmd} ${args.join(' ')}`);
 
+      // Security: shell: false prevents command injection via test names
       const proc = cp.spawn(gradleCmd, args, {
         cwd,
-        shell: true,
+        shell: false,
         env: { ...process.env },
       });
 
