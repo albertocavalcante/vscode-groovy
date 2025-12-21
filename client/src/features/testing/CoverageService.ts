@@ -179,10 +179,6 @@ export class CoverageService {
             },
         );
 
-        // Calculate totals
-        const totalLines = data.lines.length;
-        const coveredLines = data.lines.filter((l) => l.ci > 0).length;
-
         return vscode.FileCoverage.fromDetails(
             data.uri,
             detailedCoverage,
