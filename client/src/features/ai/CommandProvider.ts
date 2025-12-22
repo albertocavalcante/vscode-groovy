@@ -1,6 +1,6 @@
 
 import * as vscode from 'vscode';
-import { ILSPToolService } from './types';
+import { ILSPToolService, TOOL_DEFINITIONS } from './types';
 import { ToolRegistry } from './ToolRegistry';
 
 /**
@@ -17,23 +17,13 @@ export class CommandProvider implements vscode.Disposable {
     }
 
     private registerCommands() {
-        if (this.registry.isToolEnabled('groovy_find_symbol')) {
-            this.disposables.push(vscode.commands.registerCommand('groovy.ai.find_symbol', async (args: { query: string }) => {
-                return await this.lspService.findWorkspaceSymbol(args.query);
-            }));
-        }
-
-        if (this.registry.isToolEnabled('groovy_get_references')) {
-            this.disposables.push(vscode.commands.registerCommand('groovy.ai.get_references', async (args: { uri: string; line: number; character: number }) => {
-                return await this.lspService.findReferences(args.uri, args.line, args.character);
-            }));
-        }
-
-        if (this.registry.isToolEnabled('groovy_get_definition')) {
-            this.disposables.push(vscode.commands.registerCommand('groovy.ai.get_definition', async (args: { uri: string; line: number; character: number }) => {
-                return await this.lspService.getDefinition(args.uri, args.line, args.character);
-            }));
-        }
+        TOOL_DEFINITIONS.forEach(tool => {
+            if (this.registry.isToolEnabled(tool.name)) {
+                this.disposables.push(vscode.commands.registerCommand(tool.command, async (args: any) => {
+                    return await tool.handler(this.lspService, args);
+                }));
+            }
+        });
     }
 
     public dispose() {

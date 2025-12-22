@@ -50,3 +50,30 @@ export interface ILSPToolService {
      */
     getDefinition(uri: string, line: number, character: number): Promise<AILocation | null>;
 }
+
+/**
+ * Definition of an AI Tool to be shared between LM and Command providers.
+ */
+export interface ToolDefinition {
+    name: string;
+    command: string;
+    handler: (service: ILSPToolService, params: any) => Promise<any>;
+}
+
+export const TOOL_DEFINITIONS: ToolDefinition[] = [
+    {
+        name: 'groovy_find_symbol',
+        command: 'groovy.ai.find_symbol',
+        handler: async (service, params) => service.findWorkspaceSymbol(params.query)
+    },
+    {
+        name: 'groovy_get_references',
+        command: 'groovy.ai.get_references',
+        handler: async (service, params) => service.findReferences(params.uri, params.line, params.character)
+    },
+    {
+        name: 'groovy_get_definition',
+        command: 'groovy.ai.get_definition',
+        handler: async (service, params) => service.getDefinition(params.uri, params.line, params.character)
+    }
+];
