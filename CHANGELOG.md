@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.1.0-alpha.0](https://github.com/albertocavalcante/vscode-groovy/compare/v0.1.0-alpha.0...v0.1.0-alpha.0) (2025-12-22)
+
+
+### Features
+
+* Refactor and Enable VS Code Extension Testing ([#76](https://github.com/albertocavalcante/vscode-groovy/issues/76)) ([53d319c](https://github.com/albertocavalcante/vscode-groovy/commit/53d319c4d866054afacec4bda8d26cbd53b844df))
+* Semantic LSP Bridge (AI Tools) ([#82](https://github.com/albertocavalcante/vscode-groovy/issues/82)) ([e9e75fa](https://github.com/albertocavalcante/vscode-groovy/commit/e9e75fa605d95545c873e29fb77e0a1643e34b69))
+* **semantics:** add semantic token scopes for Jenkins syntax ([#66](https://github.com/albertocavalcante/vscode-groovy/issues/66)) ([02a59c5](https://github.com/albertocavalcante/vscode-groovy/commit/02a59c525c9262de1ddd995b02fd0d8c9807c77e))
+* Spock Test Scaffolding ([#83](https://github.com/albertocavalcante/vscode-groovy/issues/83)) ([be00f21](https://github.com/albertocavalcante/vscode-groovy/commit/be00f21d02565a2a9ea65fdd459d462425dbce2d))
+* **testing:** add foundation for test runs ([#77](https://github.com/albertocavalcante/vscode-groovy/issues/77)) ([b87beea](https://github.com/albertocavalcante/vscode-groovy/commit/b87beea529ecf923809f83385bbc82c12f4dc815))
+* **testing:** phase 2 - LSP-based test discovery ([#80](https://github.com/albertocavalcante/vscode-groovy/issues/80)) ([659ffe8](https://github.com/albertocavalcante/vscode-groovy/commit/659ffe87e4afba7a8a97a0e0f51db48f30c5fb8f))
+* **testing:** phase 3 - structured test execution with JSON events ([#78](https://github.com/albertocavalcante/vscode-groovy/issues/78)) ([9c869c1](https://github.com/albertocavalcante/vscode-groovy/commit/9c869c1b14e7510fcd2866602c097684680fad49))
+* **testing:** phase 4 - dynamic subtest creation for Spock @Unroll ([#79](https://github.com/albertocavalcante/vscode-groovy/issues/79)) ([523d1b8](https://github.com/albertocavalcante/vscode-groovy/commit/523d1b8ba73c0aa2531f0508179ab92ff508f244))
+* **testing:** test coverage integration with JaCoCo ([#81](https://github.com/albertocavalcante/vscode-groovy/issues/81)) ([d60f3b8](https://github.com/albertocavalcante/vscode-groovy/commit/d60f3b8cf124fbc25e54896cefea6263c74444bb))
+* **tools:** support groovy-lsp URL and artifact downloads ([#58](https://github.com/albertocavalcante/vscode-groovy/issues/58)) ([16094ee](https://github.com/albertocavalcante/vscode-groovy/commit/16094eec45dca69b3c9e9cbd2df8d3e576ed75e5))
+* **ui:** add granular status bar with progress integration ([#70](https://github.com/albertocavalcante/vscode-groovy/issues/70)) ([3461360](https://github.com/albertocavalcante/vscode-groovy/commit/346136085587ffffa8ff169ebf05ee64e5546d37))
+* **update:** add UpdateChecker orchestration (PR B) ([#62](https://github.com/albertocavalcante/vscode-groovy/issues/62)) ([554cdba](https://github.com/albertocavalcante/vscode-groovy/commit/554cdbabedfacb368c153daf604170773c7cfe70))
+* **update:** add VersionCache with tests ([#61](https://github.com/albertocavalcante/vscode-groovy/issues/61)) ([09d57dd](https://github.com/albertocavalcante/vscode-groovy/commit/09d57ddc99fa49e37c6b4b1b360b3c347f297117))
+* **update:** add VersionChecker with unit tests ([#60](https://github.com/albertocavalcante/vscode-groovy/issues/60)) ([26fe174](https://github.com/albertocavalcante/vscode-groovy/commit/26fe1741667c237ad3e7b789bef20a42c5033e5c))
+* **update:** finalize update checker UX + reliability ([#64](https://github.com/albertocavalcante/vscode-groovy/issues/64)) ([571aed6](https://github.com/albertocavalcante/vscode-groovy/commit/571aed667baee07897b1dfba83f942d7d88a1eba))
+* **update:** wire UpdateChecker into VS Code (PR C) ([#63](https://github.com/albertocavalcante/vscode-groovy/issues/63)) ([e7594b6](https://github.com/albertocavalcante/vscode-groovy/commit/e7594b6062da7d0fbb7db596dc04075185c80a81))
+
+
+### Bug Fixes
+
+* align settings with groovy-lsp config keys ([#57](https://github.com/albertocavalcante/vscode-groovy/issues/57)) ([11b2b30](https://github.com/albertocavalcante/vscode-groovy/commit/11b2b3026c7057e40d1a580116f1b4651e7f43b8))
+* make VSIX packaging allowlist-based ([#53](https://github.com/albertocavalcante/vscode-groovy/issues/53)) ([6b48075](https://github.com/albertocavalcante/vscode-groovy/commit/6b4807586cc9239985e9412bd167a191c2fc8c94))
+* remove duplicate prepare-server call in package script ([#68](https://github.com/albertocavalcante/vscode-groovy/issues/68)) ([28460cf](https://github.com/albertocavalcante/vscode-groovy/commit/28460cf8c988e40f67a9fc43cc037d168f1718c5))
+* Remove prepare-server from package script since vscode:prepublish handles it. ([28460cf](https://github.com/albertocavalcante/vscode-groovy/commit/28460cf8c988e40f67a9fc43cc037d168f1718c5))
+
 ## [0.1.0-alpha.0](https://github.com/albertocavalcante/vscode-groovy/compare/v0.1.0-alpha.0...v0.1.0-alpha.0) (2025-12-19)
 
 
