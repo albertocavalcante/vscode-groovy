@@ -64,6 +64,11 @@ export async function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push(testOutputChannel);
         registerTestingFeatures(context, testOutputChannel);
 
+        // Register Spock Test Scaffolding
+        // TODO: Move this into registerTestingFeatures once refined
+        const { TestFeature } = require('./features/testing/TestFeature');
+        context.subscriptions.push(new TestFeature());
+
         // Initialize update service for LSP version checking
         // Uses extension version from package.json (which bundles the LSP)
         const extensionVersion = context.extension.packageJSON.version as string;
