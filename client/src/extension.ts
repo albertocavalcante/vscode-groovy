@@ -47,7 +47,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // AI Tools Integration
         const lspToolService = new LSPToolService(vscode, getClient);
-        const toolRegistry = new ToolRegistry(lspToolService, vscode.workspace.getConfiguration('groovy'));
+        const toolRegistry = new ToolRegistry(vscode.workspace.getConfiguration('groovy'));
 
         // Register Adapters
         const lmToolProvider = new LMToolProvider(lspToolService, toolRegistry);
