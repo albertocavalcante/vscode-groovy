@@ -109,6 +109,7 @@ export class CoverageService {
             const packageName = packageMatch[1].replace(/\//g, path.sep);
             const packageContent = packageMatch[2];
 
+            sourcefileRegex.lastIndex = 0;
             let sourceMatch;
             while ((sourceMatch = sourcefileRegex.exec(packageContent)) !== null) {
                 const filename = sourceMatch[1];
@@ -134,6 +135,7 @@ export class CoverageService {
                 }
 
                 const lines: JacocoLine[] = [];
+                lineRegex.lastIndex = 0;
                 let lineMatch;
                 while ((lineMatch = lineRegex.exec(sourceContent)) !== null) {
                     lines.push({
@@ -166,9 +168,14 @@ export class CoverageService {
                 // Create branch coverage if branches exist
                 const branches: vscode.BranchCoverage[] = [];
                 if (line.mb > 0 || line.cb > 0) {
-                    branches.push(
-                        new vscode.BranchCoverage(line.cb > 0, position, 'branch'),
-                    );
+                    // Add covered branches (`cb` count)
+                    for (let i = 0; i < line.cb; i++) {
+                        branches.push(new vscode.BranchCoverage(1, position));
+                    }
+                    // Add missed branches (`mb` count)
+                    for (let i = 0; i < line.mb; i++) {
+                        branches.push(new vscode.BranchCoverage(0, position));
+                    }
                 }
 
                 return new vscode.StatementCoverage(
