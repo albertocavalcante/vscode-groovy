@@ -5,9 +5,8 @@
 
 import * as vscode from "vscode";
 import { initializeClient, startClient, stopClient, getClient } from "./server/client";
-import { registerStatusBarItem, getStatusBarManager } from "./ui/statusBar";
-import { createLanguageStatusManager, disposeLanguageStatusManager } from "./ui/languageStatus";
-import { registerCommands, initializeUpdateService, setServerOutputChannel } from "./commands";
+import { registerStatusBarItem } from "./ui/statusBar";
+import { registerCommands, initializeUpdateService } from "./commands";
 import { setupConfigurationWatcher } from "./configuration/watcher";
 import { getUpdateConfiguration } from "./configuration/settings";
 import { registerFormatting } from "./features/formatting/formatter";
@@ -19,7 +18,6 @@ import { ToolRegistry } from "./features/ai/ToolRegistry";
 import { LMToolProvider } from "./features/ai/LMToolProvider";
 import { CommandProvider } from "./features/ai/CommandProvider";
 import { TestFeature } from "./features/testing/TestFeature";
-import { registerAstFeatures } from "./features/ast/AstProvider";
 
 /**
  * Activates the extension
@@ -28,25 +26,12 @@ export async function activate(context: vscode.ExtensionContext) {
     console.log("Groovy Language Extension is activating...");
 
     try {
-        // Get extension version for status bar
-        const extensionVersion = (context.extension.packageJSON.version as string) || 'unknown';
-
         // Initialize the LSP client with context
         initializeClient(context);
 
-        // Register status bar indicator with version info
-        const statusBarDisposable = registerStatusBarItem(undefined, extensionVersion);
+        // Register status bar indicator
+        const statusBarDisposable = registerStatusBarItem();
         context.subscriptions.push(statusBarDisposable);
-
-        // Create server output channel and link to status bar
-        const serverOutputChannel = vscode.window.createOutputChannel("Groovy Language Server");
-        context.subscriptions.push(serverOutputChannel);
-        setServerOutputChannel(serverOutputChannel);
-        getStatusBarManager()?.setOutputChannel(serverOutputChannel);
-
-        // Create Language Status Items for rich status display
-        createLanguageStatusManager();
-        context.subscriptions.push({ dispose: () => disposeLanguageStatusManager() });
 
         // Register commands
         registerCommands(context);
@@ -58,27 +43,8 @@ export async function activate(context: vscode.ExtensionContext) {
         // Initialize REPL
         replService.initialize(context);
 
-        // Register features that depend on the client
-        registerFormatting(context);
-
-        // Register testing features
-        const testOutputChannel = vscode.window.createOutputChannel("Groovy Tests");
-        context.subscriptions.push(testOutputChannel);
-        registerTestingFeatures(context, testOutputChannel);
-
-        // Register AST Visualization
-        registerAstFeatures(context);
-
-        // Register Spock Test Scaffolding
-        context.subscriptions.push(new TestFeature());
-
         // Start the Language Server
-        // We start this LAST so that all features (modifiers, providers) are registered
-        // and can potentially function (or be ready) even if the server fails to start immediately.
-        await startClient(serverOutputChannel);
-
-        registerGradleFeatures(context);
-        registerTestingFeatures(context, testOutputChannel);
+        await startClient();
 
         // AI Tools Integration
         const lspToolService = new LSPToolService(vscode, getClient);
@@ -90,8 +56,22 @@ export async function activate(context: vscode.ExtensionContext) {
 
         context.subscriptions.push(lmToolProvider, commandProvider);
 
+        // Register features that depend on the client
+        registerFormatting(context);
+        registerGradleFeatures(context);
+
+        // Register testing features
+        const testOutputChannel = vscode.window.createOutputChannel("Groovy Tests");
+        context.subscriptions.push(testOutputChannel);
+        registerTestingFeatures(context, testOutputChannel);
+
+        // Register Spock Test Scaffolding
+        // TODO: Move this into registerTestingFeatures once refined
+        context.subscriptions.push(new TestFeature());
+
         // Initialize update service for LSP version checking
         // Uses extension version from package.json (which bundles the LSP)
+        const extensionVersion = context.extension.packageJSON.version as string;
         const updateService = initializeUpdateService(context, extensionVersion);
         const updateConfig = getUpdateConfiguration();
         if (updateConfig.checkOnStartup) {

@@ -4,14 +4,6 @@ import * as vscode from 'vscode';
 
 suite('Spock Test Scaffolding Integration', () => {
 
-    suiteSetup(async function () {
-        this.timeout(60000); // Increase timeout for Windows CI
-        const extension = vscode.extensions.getExtension('albertocavalcante.gvy');
-        if (!extension?.isActive) {
-            await extension?.activate();
-        }
-    });
-
     test('Command groovy.test.generate should be registered', async () => {
         const commands = await vscode.commands.getCommands(true);
         assert.ok(commands.includes('groovy.test.generate'), 'groovy.test.generate command should be registered');

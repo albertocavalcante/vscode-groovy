@@ -1,8 +1,8 @@
 {
-  "name": "gvy",
-  "displayName": "gvy - Groovy",
-  "description": "Groovy language support powered by gls (Groovy Language Server)",
-  "version": "0.4.8",
+  "name": "vscode-groovy",
+  "displayName": "Groovy Language Support",
+  "description": "Language support for Apache Groovy, Gradle, and Jenkins Pipeline",
+  "version": "0.1.0-alpha.0",
   "publisher": "albertocavalcante",
   "license": "Apache-2.0",
   "engines": {
@@ -23,7 +23,9 @@
     "onLanguage:jenkinsfile",
     "workspaceContains:**/Jenkinsfile",
     "workspaceContains:**/Jenkinsfile.*",
-    "workspaceContains:**/*.groovy"
+    "workspaceContains:**/*.groovy",
+    "workspaceContains:**/*.gradle",
+    "workspaceContains:**/*.gradle.kts"
   ],
   "main": "./client/out/extension.js",
   "contributes": {
@@ -39,30 +41,6 @@
       {
         "command": "groovy.checkForUpdates",
         "title": "Groovy: Check for Language Server Updates"
-      },
-      {
-        "command": "groovy.stopServer",
-        "title": "Groovy: Stop Language Server"
-      },
-      {
-        "command": "groovy.openLogs",
-        "title": "Groovy: Open Server Logs"
-      },
-      {
-        "command": "groovy.showStatusMenu",
-        "title": "Groovy: Show Server Status Menu"
-      },
-      {
-        "command": "groovy.reportIssue",
-        "title": "Groovy: Report Issue"
-      },
-      {
-        "command": "groovy.toggleDebugLogs",
-        "title": "Groovy: Toggle Debug Logging"
-      },
-      {
-        "command": "groovy.setLogLevel",
-        "title": "Groovy: Set Log Level"
       },
       {
         "command": "groovy.gradle.build",
@@ -130,20 +108,6 @@
         "command": "groovy.repl.show",
         "title": "Groovy: Show REPL",
         "icon": "$(terminal)"
-      },
-      {
-        "command": "groovy.ast.show",
-        "title": "Groovy: Show AST Explorer",
-        "icon": "$(symbol-structure)",
-        "category": "View"
-      }
-    ],
-    "keybindings": [
-      {
-        "command": "groovy.ast.show",
-        "key": "ctrl+shift+a",
-        "mac": "cmd+shift+a",
-        "when": "editorLangId == groovy"
       }
     ],
     "languages": [
@@ -241,36 +205,6 @@
           "default": "off",
           "description": "Trace communication with Groovy Language Server"
         },
-        "groovy.statusBar.show": {
-          "type": "string",
-          "enum": [
-            "always",
-            "onGroovyFile",
-            "never"
-          ],
-          "default": "onGroovyFile",
-          "enumDescriptions": [
-            "Always show the status bar item",
-            "Only show when editing Groovy files",
-            "Never show the status bar item"
-          ],
-          "description": "When to show the Groovy server status bar item"
-        },
-        "groovy.statusBar.clickAction": {
-          "type": "string",
-          "enum": [
-            "menu",
-            "logs",
-            "restart"
-          ],
-          "default": "menu",
-          "enumDescriptions": [
-            "Open the server action menu",
-            "Open the server output logs",
-            "Restart the language server"
-          ],
-          "description": "Action to perform when clicking the status bar item"
-        },
         "groovy.server.maxNumberOfProblems": {
           "scope": "resource",
           "type": "number",
@@ -281,27 +215,6 @@
           "scope": "machine",
           "type": "string",
           "description": "Absolute path to a custom Groovy Language Server JAR. If not set, the embedded server is used."
-        },
-        "groovy.languageServer.engine": {
-          "type": "string",
-          "enum": [
-            "core",
-            "native"
-          ],
-          "default": "core",
-          "description": "Select the parser engine to use (Core: GroovyParser, Native: Groovy 3)."
-        },
-        "groovy.server.logLevel": {
-          "type": "string",
-          "enum": [
-            "error",
-            "warn",
-            "info",
-            "debug",
-            "trace"
-          ],
-          "default": "info",
-          "description": "Logging level for the language server."
         },
         "groovy.format.enable": {
           "type": "boolean",
@@ -409,11 +322,6 @@
           "default": [],
           "markdownDescription": "Paths to IntelliJ GDSL files for DSL enhancements. GDSL files provide dynamic method and property contributions for pipeline DSLs.\n\nExample: `[\"/path/to/jenkins.gdsl\"]`"
         },
-        "groovy.jenkins.gdslExecution.enabled": {
-          "type": "boolean",
-          "default": false,
-          "markdownDescription": "Enable execution of GDSL scripts. Disabled by default for security because GDSL runs arbitrary Groovy code. Only enable for trusted workspaces."
-        },
         "groovy.jenkins.pluginsTxtPath": {
           "type": "string",
           "description": "Explicit path to Jenkins plugins.txt (overrides auto-discovery)"
@@ -471,16 +379,6 @@
             "all"
           ],
           "description": "List of allowed tools. Use ['all'] to enable all tools, or specify individual tool names (e.g., ['groovy_find_symbol'])."
-        },
-        "groovy.gradle.buildStrategy": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "gradle",
-            "maven"
-          ],
-          "default": "auto",
-          "description": "Build tool strategy for dependency resolution."
         }
       }
     },
@@ -574,13 +472,12 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run prepare-server && node tools/validate-server.js && pnpm run package-build",
+    "vscode:prepublish": "npm run prepare-server && node tools/validate-server.js && npm run package-build",
     "prepare-server": "node tools/prepare-server.js",
     "prepare-server:local": "PREFER_LOCAL=true node tools/prepare-server.js",
     "prepare-server:download": "FORCE_DOWNLOAD=true node tools/prepare-server.js",
-    "prepare-server:build": "BUILD_LOCAL=true node tools/prepare-server.js",
-    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
-    "package-build": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "package-build": "npm run check-types && npm run lint && node esbuild.js --production",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project client/tsconfig.json",
@@ -588,21 +485,21 @@
     "lint": "eslint client/src/**/*.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "package": "vsce package --no-dependencies",
+    "package": "vsce package",
     "install-extension": "node tools/install-extension.js",
-    "clean": "rm -rf client/out/ server/*.jar server/.gls-version",
-    "postinstall": "cd client && pnpm install && cd .. && pnpm run prepare-server",
+    "clean": "rm -rf client/out/ server/*.jar server/.groovy-lsp-version",
+    "postinstall": "cd client && npm install && cd .. && npm run prepare-server",
     "test": "mocha",
     "test:watch": "mocha --watch",
     "compile:tests": "tsc -b client/tsconfig.json",
-    "test:integration": "pnpm run compile:tests && vscode-test",
-    "test:all": "pnpm run test && pnpm run test:integration"
+    "test:integration": "npm run compile:tests && vscode-test",
+    "test:all": "npm run test && npm run test:integration"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^24.0.0",
+    "@types/node": "^22",
     "@types/proxyquire": "^1.3.31",
     "@types/sinon": "^21.0.0",
     "@vscode/test-cli": "^0.0.12",
@@ -623,11 +520,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/albertocavalcante/vscode-groovy.git",
+    "url": "https://github.com/albertocavalcante/groovy-lsp.git",
     
   },
   "bugs": {
-    "url": "https://github.com/albertocavalcante/vscode-groovy/issues"
+    "url": "https://github.com/albertocavalcante/groovy-lsp/issues"
   },
-  "homepage": "https://github.com/albertocavalcante/vscode-groovy#readme"
+  "homepage": "https://github.com/albertocavalcante/groovy-lsp/tree/main/editors/code#readme"
 }

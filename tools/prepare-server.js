@@ -1,9 +1,9 @@
 /**
  * Prepares the Groovy Language Server JAR
  * Priority order:
- * 1. Use explicitly provided local JAR (--local/GLS_LOCAL_JAR)
- * 2. Use explicitly provided URL (--url/GLS_URL)
- * 3. Use existing server/gls.jar if present (unless FORCE_DOWNLOAD=true)
+ * 1. Use explicitly provided local JAR (--local/GROOVY_LSP_LOCAL_JAR)
+ * 2. Use explicitly provided URL (--url/GROOVY_LSP_URL)
+ * 3. Use existing server/groovy-lsp.jar if present (unless FORCE_DOWNLOAD=true)
  * 4. Copy from local groovy-lsp build if available and PREFER_LOCAL=true
  * 5. Download from GitHub releases (pinned, latest, nightly, or explicit tag)
  */
@@ -12,7 +12,6 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const os = require("node:os");
-const { execSync } = require("node:child_process");
 const { validateJarFile } = require("./validate-server.js");
 const { extractOrCopyJar, isZipFile } = require("./zip.js");
 const { HttpError, downloadToFile } = require("./http.js");
@@ -29,46 +28,17 @@ const {
 } = require("./github-token.js");
 
 const SERVER_DIR = path.join(__dirname, "..", "server");
-const CANONICAL_JAR_NAME = "gls.jar";
+const CANONICAL_JAR_NAME = "groovy-lsp.jar";
 const JAR_PATH = path.join(SERVER_DIR, CANONICAL_JAR_NAME);
-const VERSION_FILE = path.join(SERVER_DIR, ".gls-version");
+const VERSION_FILE = path.join(SERVER_DIR, ".groovy-lsp-version");
 
 // Pinned Groovy LSP release
-const PINNED_RELEASE_TAG = "v0.4.8";
-const PINNED_JAR_ASSET = "gls-0.4.8.jar";
-// Ships a single universal JAR; use gls artifact for all platforms
-const PINNED_DOWNLOAD_URL = `https://github.com/albertocavalcante/gvy/releases/download/${PINNED_RELEASE_TAG}/${PINNED_JAR_ASSET}`;
+const PINNED_RELEASE_TAG = "v0.2.0";
+const PINNED_JAR_ASSET = "groovy-lsp-0.2.0-linux-amd64.jar";
+// v0.2.0 ships a single universal JAR; reuse the linux-amd64 artifact for all platforms
+const PINNED_DOWNLOAD_URL = `https://github.com/albertocavalcante/groovy-lsp/releases/download/${PINNED_RELEASE_TAG}/${PINNED_JAR_ASSET}`;
 const PINNED_JAR_SHA256 =
-  "552558bc588968c3127aa25114a86bb9137fa740572b39e7af44ff732a2802f2";
-
-/**
- * Sanitizes user-controlled strings for safe logging
- * Prevents log injection attacks by removing:
- * - Newlines (\n, \r) - prevents fake log entries
- * - ANSI escape codes - prevents terminal manipulation
- * - Control characters - prevents binary/malicious content
- * @param {string} str - User-controlled string to sanitize
- * @param {number} maxLength - Maximum length before truncation (default: 500)
- * @returns {string} Sanitized string safe for logging
- */
-function sanitizeForLog(str, maxLength = 500) {
-  if (typeof str !== "string") {
-    return String(str);
-  }
-
-  // Remove ANSI escape codes (e.g., \x1b[31m for colors)
-  let sanitized = str.replace(/\x1b\[[0-9;]*m/g, "");
-
-  // Remove all control characters (ASCII 0-31 except tab) including newlines
-  sanitized = sanitized.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, "");
-
-  // Truncate if too long
-  if (sanitized.length > maxLength) {
-    sanitized = sanitized.substring(0, maxLength) + "... (truncated)";
-  }
-
-  return sanitized;
-}
+  "0ec247be16c0cce5217a1bd4b6242f67c9ed002e486b749479d50c980a328601";
 
 function expectValue(argv, index, flag) {
   if (index >= argv.length || argv[index].startsWith("--")) {
@@ -89,7 +59,6 @@ function parseArgs(argv = []) {
     forceDownload: false,
     channel: null,
     preferLocal: false,
-    buildLocal: false,
     help: false,
     unknown: [],
   };
@@ -132,9 +101,6 @@ function parseArgs(argv = []) {
       case "--prefer-local":
         parsed.preferLocal = true;
         break;
-      case "--build-local":
-        parsed.buildLocal = true;
-        break;
       case "--help":
       case "-h":
         parsed.help = true;
@@ -148,39 +114,15 @@ function parseArgs(argv = []) {
 }
 
 /**
- * Walks up the directory tree to find the monorepo root.
- * Looks for groovy-lsp/build.gradle.kts as a marker.
- * This approach is robust to directory structure changes.
- * @returns {string|null} Path to monorepo root, or null if not found
- */
-function findMonorepoRoot() {
-  let current = __dirname;
-  const root = path.parse(current).root;
-
-  while (current !== root) {
-    const marker = path.join(current, "groovy-lsp", "build.gradle.kts");
-    if (fs.existsSync(marker)) {
-      return current;
-    }
-    current = path.dirname(current);
-  }
-  return null;
-}
-
-/**
  * Finds local Groovy LSP JAR file in common development locations
- * @returns {string|null} Path to JAR file, or null if not found
  */
 function findLocalGroovyLspJar() {
-  // Find monorepo root by walking up directory tree (robust to refactoring)
-  const monorepoRoot = findMonorepoRoot();
-
   const searchPaths = [
     // 1. Environment variable override
-    process.env.GLS_LOCAL_JAR,
+    process.env.GROOVY_LSP_LOCAL_JAR,
 
-    // 2. Monorepo sibling directory (most common for development)
-    monorepoRoot ? path.join(monorepoRoot, "groovy-lsp", "build", "libs") : null,
+    // 2. Sibling directory (common for development)
+    path.join(__dirname, "..", "..", "groovy-lsp", "build", "libs"),
 
     // 3. Common workspace patterns
     path.join(
@@ -210,10 +152,10 @@ function findLocalGroovyLspJar() {
   for (const searchPath of searchPaths) {
     try {
       // If it's a direct file path (from env var), check if it exists
-      if (searchPath === process.env.GLS_LOCAL_JAR) {
+      if (searchPath === process.env.GROOVY_LSP_LOCAL_JAR) {
         if (fs.existsSync(searchPath) && searchPath.endsWith(".jar")) {
           console.log(
-            `Found local JAR via GLS_LOCAL_JAR: ${searchPath}`,
+            `Found local JAR via GROOVY_LSP_LOCAL_JAR: ${searchPath}`,
           );
           return searchPath;
         }
@@ -225,20 +167,9 @@ function findLocalGroovyLspJar() {
         const jarFiles = fs
           .readdirSync(searchPath)
           .filter(
-            (file) =>
-              file.endsWith(".jar") &&
-              (file.includes("groovy-lsp") || file.startsWith("gls-")),
+            (file) => file.endsWith(".jar") && file.includes("groovy-lsp"),
           )
-          .sort((a, b) => {
-            // Priority 1: Files ending in -all.jar (Shadow JARs)
-            const aIsAll = a.endsWith("-all.jar");
-            const bIsAll = b.endsWith("-all.jar");
-            if (aIsAll && !bIsAll) return -1;
-            if (!aIsAll && bIsAll) return 1;
-
-            // Priority 2: Alphabetical
-            return a.localeCompare(b);
-          });
+          .sort(); // Sort to get consistent results
 
         if (jarFiles.length > 0) {
           const foundJar = path.join(searchPath, jarFiles[0]); // Use first match
@@ -278,7 +209,7 @@ function copyLocalJar(localJarPath, { forceDownload }) {
   }
 
   if (shouldCopy) {
-    console.log(`Copying from local build: ${sanitizeForLog(localJarPath)}`);
+    console.log(`Copying from local build: ${localJarPath}`);
     fs.copyFileSync(localJarPath, JAR_PATH);
 
     // Validate destination JAR after copying
@@ -302,16 +233,19 @@ function copyLocalJar(localJarPath, { forceDownload }) {
 }
 
 function deriveSelection(cliOptions) {
-  const explicitTag = cliOptions.tag || process.env.GLS_TAG || null;
+  const explicitTag = cliOptions.tag || process.env.GROOVY_LSP_TAG || null;
   const channel = (
     cliOptions.channel ||
-    process.env.GLS_CHANNEL ||
+    process.env.GROOVY_LSP_CHANNEL ||
     ""
   ).toLowerCase();
   const useNightly = cliOptions.nightly || channel === "nightly";
-  const usePinned = process.env.GLS_USE_PINNED === "true" || channel === "pinned";
+  const useLatestRelease =
+    !useNightly &&
+    (cliOptions.latest ||
+      channel === "release" ||
+      process.env.USE_LATEST_GROOVY_LSP === "true");
 
-  // Priority: tag > nightly > pinned > latest (default)
   if (explicitTag) {
     return { type: "tag", tag: explicitTag };
   }
@@ -320,11 +254,11 @@ function deriveSelection(cliOptions) {
     return { type: "nightly" };
   }
 
-  if (usePinned) {
-    return { type: "pinned" };
+  if (useLatestRelease) {
+    return { type: "latest" };
   }
 
-  return { type: "latest" };
+  return { type: "pinned" };
 }
 
 async function resolveTarget(selection, { authToken } = {}) {
@@ -342,7 +276,7 @@ async function resolveTarget(selection, { authToken } = {}) {
     const checksum = await fetchChecksumForAsset(info.assets, jarAsset.name, {
       authToken,
     });
-    console.log(`${logMessage}: ${sanitizeForLog(info.tag_name)}`);
+    console.log(`${logMessage}: ${info.tag_name}`);
     return {
       tag: info.tag_name,
       assetName: jarAsset.name,
@@ -545,9 +479,7 @@ async function downloadFromUrl(url, expectedChecksum) {
  * Downloads the target release JAR from GitHub
  */
 async function downloadRelease(target) {
-  console.log(
-    `Downloading Groovy LSP ${sanitizeForLog(target.tag)} (${sanitizeForLog(target.assetName)})...`,
-  );
+  console.log(`Downloading Groovy LSP ${target.tag} (${target.assetName})...`);
   await downloadToFile(target.downloadUrl, JAR_PATH);
 
   // Validate downloaded JAR
@@ -582,52 +514,6 @@ async function downloadRelease(target) {
 }
 
 /**
- * Detects if we're running inside the monorepo
- * @returns {boolean} True if groovy-lsp sibling directory exists
- */
-function detectMonorepoEnvironment() {
-  return findMonorepoRoot() !== null;
-}
-
-/**
- * Gets the monorepo root directory
- * @returns {string|null} Path to monorepo root, or null if not in monorepo
- */
-function getMonorepoRoot() {
-  return findMonorepoRoot();
-}
-
-/**
- * Builds the local JAR by invoking 'make jar' in the monorepo root.
- * Only works in a monorepo environment.
- * @throws {Error} If not in monorepo or build fails
- */
-function buildLocalJar() {
-  if (!detectMonorepoEnvironment()) {
-    throw new Error(
-      "--build-local requires a monorepo environment (groovy-lsp sibling directory not found)",
-    );
-  }
-
-  const monorepoRoot = getMonorepoRoot();
-  console.log("🔨 Building local JAR via 'make jar'...");
-  console.log(`   Working directory: ${monorepoRoot}`);
-
-  try {
-    execSync("make jar", {
-      cwd: monorepoRoot,
-      stdio: "inherit",
-      env: { ...process.env },
-    });
-    console.log("✓ Local JAR build completed");
-  } catch (error) {
-    throw new Error(
-      `Failed to build local JAR: ${error.message || "make jar failed"}`,
-    );
-  }
-}
-
-/**
  * Main function to prepare the server JAR
  */
 async function prepareServer(runtimeOptions = {}) {
@@ -656,52 +542,19 @@ async function prepareServer(runtimeOptions = {}) {
     const preferLocal =
       runtimeOptions.preferLocal ??
       (cliOptions.preferLocal || process.env.PREFER_LOCAL === "true");
-    const buildLocal =
-      runtimeOptions.buildLocal ??
-      (cliOptions.buildLocal || process.env.BUILD_LOCAL === "true");
     const explicitLocalJar =
       runtimeOptions.local ??
       cliOptions.local ??
-      process.env.GLS_LOCAL_JAR ??
+      process.env.GROOVY_LSP_LOCAL_JAR ??
       null;
     const explicitUrl =
-      runtimeOptions.url ?? cliOptions.url ?? process.env.GLS_URL ?? null;
+      runtimeOptions.url ?? cliOptions.url ?? process.env.GROOVY_LSP_URL ?? null;
     const explicitChecksum =
       runtimeOptions.checksum ??
       cliOptions.checksum ??
-      process.env.GLS_CHECKSUM ??
+      process.env.GROOVY_LSP_CHECKSUM ??
       null;
     const installedVersion = readInstalledVersion();
-
-    // Auto-detect monorepo and prefer local build
-    // Only activate if no explicit version/channel selection is made
-    const isMonorepo = detectMonorepoEnvironment();
-    const hasExplicitVersionSelection =
-      cliOptions.tag ||
-      cliOptions.nightly ||
-      cliOptions.latest ||
-      cliOptions.channel ||
-      process.env.GLS_TAG ||
-      process.env.GLS_CHANNEL ||
-      process.env.GLS_USE_PINNED === "true" ||
-      process.env.USE_LATEST_GLS === "true";
-
-    const autoPreferLocal = isMonorepo &&
-      !explicitUrl &&
-      !hasExplicitVersionSelection;
-
-    const effectivePreferLocal = preferLocal || autoPreferLocal;
-
-    // In monorepo, auto-build local JAR if not found
-    // Disabled in CI environments (CI=true) and when BUILD_LOCAL=false
-    const isCI = process.env.CI === "true";
-    const autoBuildLocal = autoPreferLocal && !isCI && process.env.BUILD_LOCAL !== "false";
-    const effectiveBuildLocal = buildLocal || autoBuildLocal;
-
-    if (autoPreferLocal) {
-      const buildStatus = autoBuildLocal ? " (auto-build enabled)" : isCI ? " (auto-build disabled in CI)" : "";
-      console.log(`📦 Monorepo detected - will use local build${buildStatus}`);
-    }
 
     // Hard local override (highest precedence)
     if (explicitLocalJar) {
@@ -740,9 +593,7 @@ async function prepareServer(runtimeOptions = {}) {
 
           if (jarFiles.length > 0) {
             jarToUse = path.join(buildLibs, jarFiles[0]);
-            console.log(
-              `Found JAR in build directory: ${sanitizeForLog(jarToUse)}`,
-            );
+            console.log(`Found JAR in build directory: ${jarToUse}`);
           } else {
             throw new Error(
               `No groovy-lsp JAR found in ${buildLibs}. Did you run the build?`,
@@ -757,9 +608,7 @@ async function prepareServer(runtimeOptions = {}) {
 
           if (jarFiles.length > 0) {
             jarToUse = path.join(resolvedLocal, jarFiles[0]);
-            console.log(
-              `Found JAR in directory: ${sanitizeForLog(jarToUse)}`,
-            );
+            console.log(`Found JAR in directory: ${jarToUse}`);
           } else {
             throw new Error(
               `No JAR files found in directory: ${resolvedLocal}`,
@@ -768,9 +617,7 @@ async function prepareServer(runtimeOptions = {}) {
         }
       }
 
-      console.log(
-        `Using explicitly provided local JAR: ${sanitizeForLog(jarToUse)}`,
-      );
+      console.log(`Using explicitly provided local JAR: ${jarToUse}`);
       copyLocalJar(jarToUse, { forceDownload });
       return;
     }
@@ -783,25 +630,12 @@ async function prepareServer(runtimeOptions = {}) {
     }
 
     // Try local build first if preferred
-    if (effectivePreferLocal || effectiveBuildLocal) {
-      let localJarPath = findLocalGroovyLspJar();
-
-      // If no local JAR found and buildLocal is enabled, try to build it
-      if (!localJarPath && effectiveBuildLocal) {
-        console.log("No local JAR found, building via 'make jar'...");
-        buildLocalJar();
-        // After building, try to find the JAR again
-        localJarPath = findLocalGroovyLspJar();
-      }
+    if (preferLocal) {
+      const localJarPath = findLocalGroovyLspJar();
 
       if (localJarPath) {
         copyLocalJar(localJarPath, { forceDownload });
         return;
-      } else if (effectiveBuildLocal) {
-        // If buildLocal was enabled but we still don't have a JAR, that's an error
-        throw new Error(
-          "Build completed but no JAR found. Check 'make jar' output for errors.",
-        );
       } else {
         console.log(
           "PREFER_LOCAL=true but no local JAR found, falling back to download...",
@@ -905,9 +739,7 @@ async function prepareServer(runtimeOptions = {}) {
     }
 
     // Download from GitHub releases
-    console.log(
-      `Downloading Groovy LSP release (${sanitizeForLog(target.tag)})...`,
-    );
+    console.log(`Downloading Groovy LSP release (${target.tag})...`);
     await downloadRelease(target);
 
     // Final validation - ensure JAR is valid before completing
@@ -916,11 +748,9 @@ async function prepareServer(runtimeOptions = {}) {
         validateJarFile(JAR_PATH);
         console.log(`\u2713 Final validation: ${CANONICAL_JAR_NAME} is valid`);
       } catch (error) {
-        console.error(
-          `\u274c Final validation failed: ${sanitizeForLog(error.message)}`,
-        );
+        console.error(`\u274c Final validation failed: ${error.message}`);
         throw new Error(
-          `Server JAR validation failed at completion: ${sanitizeForLog(error.message)}`,
+          `Server JAR validation failed at completion: ${error.message}`,
         );
       }
     } else {
@@ -928,7 +758,7 @@ async function prepareServer(runtimeOptions = {}) {
     }
   } catch (error) {
     console.error("❌ Error preparing Groovy Language Server:");
-    console.error(sanitizeForLog(error.message));
+    console.error(error.message);
 
     if (error instanceof HttpError && error.isGitHubRateLimit) {
       const reset = error.rateLimit?.reset
@@ -953,55 +783,39 @@ async function prepareServer(runtimeOptions = {}) {
       console.error(
         "Network error. Please check your internet connection or try again later.",
       );
-
-      // Offer pinned fallback as escape hatch
-      if (requestedSelection?.type === "latest" && process.env.GLS_ALLOW_PINNED_FALLBACK === "true") {
-        console.warn("");
-        console.warn(`⚠️  Attempting fallback to pinned version (${PINNED_RELEASE_TAG})...`);
-        try {
-          await downloadRelease({
-            tag: PINNED_RELEASE_TAG,
-            assetName: PINNED_JAR_ASSET,
-            downloadUrl: PINNED_DOWNLOAD_URL,
-            checksum: PINNED_JAR_SHA256,
-          });
-          console.log("✅ Fallback successful!");
-          return;
-        } catch (fallbackError) {
-          console.error(
-            "❌ Fallback also failed:",
-            sanitizeForLog(fallbackError.message),
-          );
-        }
-      }
     }
 
     console.error("");
     if (requestedSelection) {
       const selectionLabel =
         requestedSelection.type === "tag"
-          ? `tag:${sanitizeForLog(requestedSelection.tag)}`
+          ? `tag:${requestedSelection.tag}`
           : requestedSelection.type;
       console.error(`Requested selection: ${selectionLabel}`);
     }
-    console.error(`Pinned fallback available: ${PINNED_RELEASE_TAG}`);
-    console.error(`Release page: https://github.com/albertocavalcante/gvy/releases/tag/${PINNED_RELEASE_TAG}`);
-    console.error("To use pinned version: GLS_USE_PINNED=true or GLS_CHANNEL=pinned");
-    console.error("To enable auto-fallback on network errors: GLS_ALLOW_PINNED_FALLBACK=true");
+    console.error(`Default pinned release: ${PINNED_RELEASE_TAG}`);
+    console.error(`Default pinned asset: ${PINNED_JAR_ASSET}`);
     console.error(
-      "To try the latest nightly: GLS_CHANNEL=nightly or pass --nightly",
+      `Release page: https://github.com/albertocavalcante/groovy-lsp/releases/tag/${PINNED_RELEASE_TAG}`,
+    );
+    console.error(
+      "To try the latest available release instead, set USE_LATEST_GROOVY_LSP=true.",
+    );
+    console.error(
+      "To try the latest nightly, set GROOVY_LSP_CHANNEL=nightly or pass --nightly.",
     );
     console.error("");
     console.error("You can also manually copy a JAR file to:");
     console.error(`  ${JAR_PATH}`);
 
+    const requireBundle = process.env.REQUIRE_SERVER_BUNDLE === "true";
     const ignoreFailure = process.env.IGNORE_DOWNLOAD_FAILURE === "true";
+    const isCI = !!(process.env.CI || process.env.GITHUB_ACTIONS);
 
-    // Only ignore failure if explicitly requested via IGNORE_DOWNLOAD_FAILURE=true
-    // CI should NOT silently ignore failures - tests need the JAR
-    if (ignoreFailure) {
+    // Allow CI runs (except when REQUIRE_SERVER_BUNDLE=true) to continue without failing installation
+    if (!requireBundle && (ignoreFailure || isCI)) {
       console.warn(
-        "\n⚠️ WARNING: Server JAR preparation failed, but ignoring (IGNORE_DOWNLOAD_FAILURE=true).",
+        "\n⚠️ WARNING: Server JAR download failed, but ignoring failure (CI/GITHUB_ACTIONS/IGNORE_DOWNLOAD_FAILURE).",
       );
       console.warn(
         "The extension will NOT work without the server JAR unless a custom path is configured.",
@@ -1050,45 +864,25 @@ function printHelp() {
 Usage: node tools/prepare-server.js [options]
 
 Options:
-  --tag <tag>            Download a specific Groovy LSP release tag (e.g. v0.4.8, nightly-*)
+  --tag <tag>            Download a specific Groovy LSP release tag (e.g. v0.2.0, nightly-*)
   --nightly              Download the latest nightly/prerelease build
-  --latest               Download the latest stable release (now the default)
-  --channel <name>       Select channel: nightly | release | pinned
+  --latest               Download the latest stable release (same as USE_LATEST_GROOVY_LSP=true)
+  --channel <name>       Select channel: nightly | release
   --local <path>         Use a specific local groovy-lsp JAR (skips download)
   --url <url>            Download from a URL (supports GitHub Actions artifacts)
   --checksum <sha256>    Optional SHA256 checksum for URL downloads
   --prefer-local         Prefer local groovy-lsp builds from common paths
-  --build-local          Build local JAR via 'make jar' if not found (monorepo only)
-                         NOTE: Auto-enabled in monorepo (disabled in CI); use BUILD_LOCAL=false to disable
   --force-download       Always download/copy even if a JAR already exists
   --print-release-tag    Print the pinned release tag and exit
   -h, --help             Show this help message
 
 Notes:
   Precedence: --local > --url > existing bundled JAR > --prefer-local > GitHub download
-  Default: Downloads latest stable release from GitHub
-  Monorepo: Auto-detected - local build used automatically
 
-Environment Variables:
-  Version Selection:
-    GLS_TAG=<version>         Use specific version (e.g., v0.4.8)
-    GLS_CHANNEL=nightly       Use latest nightly build
-    GLS_CHANNEL=release       Use latest stable release (default)
-    GLS_CHANNEL=pinned        Use pinned version (v0.4.8)
-    GLS_USE_PINNED=true       Alternative to GLS_CHANNEL=pinned
-
-  Download Behavior:
-    PREFER_LOCAL=true         Use local build from ../groovy-lsp/build/libs/
-    BUILD_LOCAL=true          Build local JAR via 'make jar' if not found (monorepo only)
-    FORCE_DOWNLOAD=true       Re-download even if JAR exists
-    GLS_ALLOW_PINNED_FALLBACK=true  Fall back to pinned on network failure
-    SKIP_PREPARE_SERVER=true  Skip server preparation entirely
-
-  Advanced:
-    GLS_LOCAL_JAR=<path>      Use JAR from specific path
-    GLS_URL=<url>             Download from custom URL
-    GLS_CHECKSUM=<sha256>     Verify custom download
-    GITHUB_TOKEN / GH_TOKEN   GitHub API authentication
+Environment:
+  GROOVY_LSP_TAG, GROOVY_LSP_CHANNEL=nightly|release, GROOVY_LSP_LOCAL_JAR,
+  GROOVY_LSP_URL, GROOVY_LSP_CHECKSUM, PREFER_LOCAL, USE_LATEST_GROOVY_LSP,
+  FORCE_DOWNLOAD, SKIP_PREPARE_SERVER.
 
 Token resolution (for GitHub API requests):
   GH_TOKEN > GITHUB_TOKEN > gh auth token

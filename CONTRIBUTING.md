@@ -21,17 +21,17 @@ Thank you for your interest in contributing to the Groovy Language Support exten
 
 2. **Install dependencies**
    ```bash
-   pnpm install
+   npm install
    ```
 
 3. **Prepare the Groovy Language Server**
    ```bash
-   pnpm run prepare-server
+   npm run prepare-server
    ```
 
 4. **Compile the extension**
    ```bash
-   pnpm run compile
+   npm run compile
    ```
 
 ## Development Workflow
@@ -39,7 +39,7 @@ Thank you for your interest in contributing to the Groovy Language Support exten
 ### Project Structure
 
 ```
-gvy/
+vscode-groovy/
 ├── client/src/          # Extension source code
 │   ├── commands/        # VS Code commands
 │   ├── configuration/   # Configuration management
@@ -54,36 +54,30 @@ gvy/
 
 ### Available Scripts
 
-- `pnpm run compile` - Compile TypeScript and bundle with esbuild
-- `pnpm run watch` - Watch mode for development
-- `pnpm run lint` - Run ESLint
-- `pnpm run check-types` - TypeScript type checking
-- `pnpm run package` - Build and package VSIX
-- `pnpm run prepare-server` - Download/prepare Groovy Language Server
+- `npm run compile` - Compile TypeScript and bundle with esbuild
+- `npm run watch` - Watch mode for development
+- `npm run lint` - Run ESLint
+- `npm run check-types` - TypeScript type checking
+- `npm run package` - Build and package VSIX
+- `npm run prepare-server` - Download/prepare Groovy Language Server
 
-### Updating the Pinned LSP Version
+### Updating the embedded Groovy LSP
 
-When a new stable LSP version is released:
-
-1. Update `editors/code/tools/prepare-server.js`:
-   - `PINNED_RELEASE_TAG = "v0.x.y"`
-   - `PINNED_JAR_ASSET = "gls-0.x.y.jar"`
-   - `PINNED_DOWNLOAD_URL = ...`
-   - `PINNED_JAR_SHA256 = "..."` (get from release checksums.txt)
-
-2. Update `editors/code/AGENTS.md`:
-   - Update "Pinned LSP" line with new version
-
-3. Test fallback behavior:
+1. Find the newest release at https://github.com/albertocavalcante/groovy-lsp/releases and note:
+   - `PINNED_RELEASE_TAG` (e.g., `v0.2.0`)
+   - `PINNED_JAR_ASSET` (the universal JAR to download)
+2. Get the SHA-256 from `checksums.txt` in that release:
    ```bash
-   GLS_USE_PINNED=true npm run prepare-server
+   curl -L "https://github.com/albertocavalcante/groovy-lsp/releases/download/<TAG>/checksums.txt"
    ```
-
-Note: Users get the **latest release by default**. The pinned version serves as:
-
-- Fallback for network issues (with `GLS_ALLOW_PINNED_FALLBACK=true`)
-- Explicit stability option (with `GLS_USE_PINNED=true`)
-- Emergency escape hatch if latest has critical bugs
+   Copy the checksum line for the chosen JAR into `PINNED_JAR_SHA256` in `tools/prepare-server.js`.
+3. Clear old artifacts and re-fetch:
+   ```bash
+   npm run clean
+   npm run prepare-server
+   ```
+4. (Optional) To experiment with the newest groovy-lsp release without changing the pinned defaults, run with `USE_LATEST_GROOVY_LSP=true npm run prepare-server`. If a `checksums.txt` asset exists in the release, the script will verify the downloaded JAR automatically.
+5. Commit the updated constants and regenerated cache key (the script hash changes automatically).
 
 ### Testing the Extension
 
@@ -113,7 +107,6 @@ We enforce code quality through automated checks:
 - **Bundle size**: Must stay under 2MB
 
 Run quality checks:
-
 ```bash
 npm run lint
 npm run check-types
@@ -134,7 +127,6 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) for automate
 - `test:` - Adding tests
 
 **Examples:**
-
 ```bash
 git commit -m "feat: add Gradle task provider integration"
 git commit -m "fix: resolve Java detection on Windows"
@@ -201,29 +193,27 @@ Our automated pipeline includes:
 
 We use automated tests to ensure the quality of the extension.
 
-**Running All Tests** To run both unit and integration tests:
-
+**Running All Tests**
+To run both unit and integration tests:
 ```bash
 npm run test:all
 ```
+*Note: Integration tests on Linux require `xvfb`. Using the CI environment or a Docker container is recommended for headless testing.*
 
-_Note: Integration tests on Linux require `xvfb`. Using the CI environment or a Docker container is recommended for
-headless testing._
-
-**Running Unit Tests** Unit tests cover individual components in isolation:
-
+**Running Unit Tests**
+Unit tests cover individual components in isolation:
 ```bash
 npm test
 ```
 
-**Running Integration Tests** Integration tests run within a VS Code Extension Host instance:
-
+**Running Integration Tests**
+Integration tests run within a VS Code Extension Host instance:
 ```bash
 npm run test:integration
 ```
 
-**Debugging Tests** You can debug tests directly in VS Code:
-
+**Debugging Tests**
+You can debug tests directly in VS Code:
 1. Open the Debug view (`Cmd+Shift+D` / `Ctrl+Shift+D`).
 2. Select **"Extension Tests"** from the configuration dropdown.
 3. Press `F5` to start debugging.
@@ -242,7 +232,6 @@ npm run test:integration
 ### File Type Testing
 
 Test with these file types:
-
 - `.groovy` - General Groovy scripts
 - `.gradle` - Gradle build files
 - `Jenkinsfile` - Jenkins Pipeline files
@@ -251,7 +240,6 @@ Test with these file types:
 ### Platform Testing
 
 Verify functionality on:
-
 - Linux (primary CI platform)
 - Windows (path separator handling, Java detection)
 - macOS (Java detection, file permissions)
@@ -262,7 +250,7 @@ Verify functionality on:
 
 1. Check VS Code Developer Console (`Help → Toggle Developer Tools`)
 2. Verify Java 17+ is installed: `java -version`
-3. Check Groovy Language Server JAR exists: `ls -la server/gls.jar`
+3. Check Groovy Language Server JAR exists: `ls -la server/groovy-lsp.jar`
 4. Review extension output panel
 
 ### Build Issues

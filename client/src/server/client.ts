@@ -6,8 +6,8 @@ import {
     ServerOptions,
     State
 } from 'vscode-languageclient/node';
-import { validateJava, showJavaError, getJavaExecutable } from '../java/validator';
-import { setClient, getStatusBarManager } from '../ui/statusBar';
+import { validateJava, showJavaError } from '../java/validator';
+import { setClient } from '../ui/statusBar';
 import { getConfiguration } from '../configuration/settings';
 import { ServerResolver } from '../services/ServerResolver';
 
@@ -84,7 +84,7 @@ async function createServerOptions(): Promise<ServerOptions> {
         throw new Error(`Java validation failed: ${javaValidation.error}`);
     }
 
-    const javaExecutable = getJavaExecutable(javaValidation.resolution);
+    const javaExecutable = javaValidation.path!;
 
     // Server launch options
     const serverOptions: ServerOptions = {
@@ -127,10 +127,7 @@ export function buildServerSettingsMap(): Record<string, unknown> {
 
     const settings: Record<string, unknown> = {
         'groovy.server.maxNumberOfProblems': config.get<number>('server.maxNumberOfProblems', 100),
-        'groovy.server.logLevel': config.get<string>('server.logLevel', 'info'),
         'groovy.trace.server': config.get<'off' | 'messages' | 'verbose'>('trace.server', 'off'),
-
-        'groovy.languageServer.engine': config.get<'core' | 'native'>('languageServer.engine', 'core'),
 
         'groovy.compilation.mode': config.get<'workspace' | 'single-file'>('compilation.mode', 'workspace'),
         'groovy.compilation.incrementalThreshold': config.get<number>('compilation.incrementalThreshold', 50),
@@ -147,11 +144,8 @@ export function buildServerSettingsMap(): Record<string, unknown> {
         'jenkins.filePatterns': config.get<string[]>('jenkins.filePatterns', ['Jenkinsfile', 'vars/*.groovy']),
         'jenkins.sharedLibraries': config.get<JenkinsSharedLibrary[]>('jenkins.sharedLibraries', []),
         'jenkins.gdslPaths': config.get<string[]>('jenkins.gdslPaths', []),
-        'jenkins.gdslExecution.enabled': config.get<boolean>('jenkins.gdslExecution.enabled', false),
         'jenkins.plugins': config.get<string[]>('jenkins.plugins', []),
         'jenkins.includeDefaultPlugins': config.get<boolean>('jenkins.includeDefaultPlugins', true),
-
-        'groovy.gradle.buildStrategy': config.get<'auto' | 'gradle' | 'maven'>('gradle.buildStrategy', 'auto'),
     };
 
     const javaHome = config.get<string>('java.home');
@@ -179,7 +173,10 @@ function buildInitializationOptions(): LspInitializationOptions {
     return buildServerSettingsMap();
 }
 
-function createClientOptions(outputChannel?: vscode.OutputChannel): LanguageClientOptions {
+/**
+ * Creates client options for the Language Client
+ */
+function createClientOptions(): LanguageClientOptions {
     const clientOptions: LanguageClientOptions = {
         // Register the server for Groovy and Jenkinsfile documents
         documentSelector: [
@@ -193,8 +190,7 @@ function createClientOptions(outputChannel?: vscode.OutputChannel): LanguageClie
             fileEvents: workspace.createFileSystemWatcher('**/*.{groovy,gvy,gy,gsh,gradle,Jenkinsfile}')
         },
         initializationOptions: buildInitializationOptions(),
-        outputChannel: outputChannel,
-        outputChannelName: outputChannel ? undefined : 'Groovy Language Server',
+        outputChannelName: 'Groovy Language Server',
         traceOutputChannel: workspace.getConfiguration('groovy').get('trace.server') !== 'off'
             ? window.createOutputChannel('Groovy Language Server Trace')
             : undefined,
@@ -218,14 +214,14 @@ function createClientOptions(outputChannel?: vscode.OutputChannel): LanguageClie
 /**
  * Starts the Language Client
  */
-export async function startClient(outputChannel?: vscode.OutputChannel): Promise<void> {
+export async function startClient(): Promise<void> {
     if (client && client.state === State.Running) {
         return; // Already running
     }
 
     try {
         const serverOptions = await createServerOptions();
-        const clientOptions = createClientOptions(outputChannel);
+        const clientOptions = createClientOptions();
 
         client = new LanguageClient(
             'groovyLanguageServer',
@@ -236,10 +232,6 @@ export async function startClient(outputChannel?: vscode.OutputChannel): Promise
 
         // Update status bar with new client
         setClient(client);
-
-        if (outputChannel) {
-            getStatusBarManager()?.setOutputChannel(outputChannel);
-        }
 
         await client.start();
         console.log('Groovy Language Server started successfully');
