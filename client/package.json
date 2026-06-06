@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "jdk-utils": "^0.6.0",
-    "vscode-languageclient": "^9.0.1",
+    "vscode-languageclient": "^10.0.0",
     "vscode-languageserver-protocol": "^3.17.5"
   },
   "devDependencies": {
