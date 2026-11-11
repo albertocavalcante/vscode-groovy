@@ -18,8 +18,8 @@ importers:
         specifier: ^10.0.10
         version: 10.0.10
       '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
+        specifier: ^26.0.0
+        version: 26.6.6
       '@types/proxyquire':
         specifier: ^1.3.31
         version: 1.3.31
@@ -70,7 +70,7 @@ importers:
         version: 22.1.0
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@24.19.2)(typescript@6.0.3)
+        version: 10.9.2(@types/node@26.6.6)(typescript@6.0.3)
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -545,8 +545,8 @@ packages:
   '@types/mocha@10.0.10':
     resolution: {integrity: sha512-xPyYSz1cMPnJQhl0CLMH68j3gprKZaTjG3s5Vi+fDgx+uhG9NOXwbVt52eFS8ECyXhyKcjDLCBEqBExKuiZb7Q==}
 
-  '@types/node@24.19.2':
-    resolution: {integrity: sha512-93d49wCWJkCyN87MxLpNN6KXPCwFw7bVUg79mGUV1OS40JGWwVCr8n61DXCSqz7CV6/VfPkb7xec7uP2M+QHWQ==}
+  '@types/node@26.6.6':
+    resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
 
   '@types/proxyquire@1.3.31':
     resolution: {integrity: sha512-uALowNG2TSM1HNPMMOR0AJwv4aPYPhqB0xlEhkeRTMuto5hjoSPZkvgu1nbPUkz3gEPAHv4sy4DmKsurZiEfRQ==}
@@ -1720,8 +1720,8 @@ packages:
   underscore@1.13.8:
     resolution: {integrity: sha512-DXtD3ZtEQzc7M8m4cXotyHR+FAS18C64asBYY5vqZexfYryNNnDc02W4hKg3rdQuqOYas1jkseX0+nZXjTXnvQ==}
 
-  undici-types@7.24.6:
-    resolution: {integrity: sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg==}
+  undici-types@8.9.0:
+    resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
@@ -2223,9 +2223,9 @@ snapshots:
 
   '@types/mocha@10.0.10': {}
 
-  '@types/node@24.19.2':
+  '@types/node@26.6.6':
     dependencies:
-      undici-types: 7.24.6
+      undici-types: 8.9.0
 
   '@types/proxyquire@1.3.31': {}
 
@@ -3418,14 +3418,14 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  ts-node@10.9.2(@types/node@24.19.2)(typescript@6.0.3):
+  ts-node@10.9.2(@types/node@26.6.6)(typescript@6.0.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.13
       '@tsconfig/node12': 1.0.11
       '@tsconfig/node14': 1.0.3
       '@tsconfig/node16': 1.0.4
-      '@types/node': 24.19.2
+      '@types/node': 26.6.6
       acorn: 8.19.0
       acorn-walk: 8.3.5
       arg: 4.1.3
@@ -3469,7 +3469,7 @@ snapshots:
 
   underscore@1.13.8: {}
 
-  undici-types@7.24.6: {}
+  undici-types@8.9.0: {}
 
   uri-js@4.4.1:
     dependencies:
